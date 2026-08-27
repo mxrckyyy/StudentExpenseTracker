@@ -3,54 +3,52 @@
 @inject ExpenseService ExpenseService
 @inject NavigationManager Navigation
 
-<div class="card shadow-sm border-0 mt-3">
-    <div class="card-body p-4">
-        <h3 class="card-title mb-4">Add New Expense</h3>
+<div class="card card-onyx shadow-lg p-4">
+    <h3 class="fw-bold mb-4" style="color: var(--accent-yellow);">Add New Expense</h3>
 
-        <EditForm Model="expense" OnValidSubmit="HandleSubmit" FormName="AddExpenseForm">
-            <DataAnnotationsValidator />
-            <ValidationSummary class="text-danger mb-3" />
+    <EditForm Model="expense" OnValidSubmit="HandleSubmit" FormName="AddExpenseForm">
+        <DataAnnotationsValidator />
+        <ValidationSummary class="text-danger mb-3" />
 
-            <div class="mb-3">
-                <label for="title" class="form-label fw-semibold">Title</label>
-                <InputText id="title" class="form-control" @bind-Value="expense.Title" placeholder="e.g. Textbooks" />
+        <div class="mb-3">
+            <label class="form-label text-light fw-semibold">Expense Title</label>
+            <InputText class="form-control form-control-onyx" @bind-Value="expense.Title" placeholder="e.g. Textbooks" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label text-light fw-semibold">Description</label>
+            <InputText class="form-control form-control-onyx" @bind-Value="expense.Description" placeholder="Optional details..." />
+        </div>
+
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label class="form-label text-light fw-semibold">Amount (₱)</label>
+                <InputNumber class="form-control form-control-onyx" @bind-Value="expense.Amount" />
             </div>
 
-            <div class="mb-3">
-                <label for="description" class="form-label fw-semibold">Description</label>
-                <InputText id="description" class="form-control" @bind-Value="expense.Description" placeholder="Optional details..." />
+            <div class="col-md-6 mb-3">
+                <label class="form-label text-light fw-semibold">Category</label>
+                <InputSelect class="form-select form-control-onyx" @bind-Value="expense.Category">
+                    <option value="">Select Category</option>
+                    <option value="Food">Food</option>
+                    <option value="Transport">Transport</option>
+                    <option value="School Supplies">School Supplies</option>
+                    <option value="Entertainment">Entertainment</option>
+                    <option value="Other">Other</option>
+                </InputSelect>
             </div>
+        </div>
 
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label for="amount" class="form-label fw-semibold">Amount (₱)</label>
-                    <InputNumber id="amount" class="form-control" @bind-Value="expense.Amount" />
-                </div>
+        <div class="mb-4">
+            <label class="form-label text-light fw-semibold">Date</label>
+            <InputDate class="form-control form-control-onyx" @bind-Value="expense.Date" />
+        </div>
 
-                <div class="col-md-6 mb-3">
-                    <label for="category" class="form-label fw-semibold">Category</label>
-                    <InputSelect id="category" class="form-select" @bind-Value="expense.Category">
-                        <option value="">Select Category</option>
-                        <option value="Food">Food</option>
-                        <option value="Transport">Transport</option>
-                        <option value="School Supplies">School Supplies</option>
-                        <option value="Entertainment">Entertainment</option>
-                        <option value="Other">Other</option>
-                    </InputSelect>
-                </div>
-            </div>
-
-            <div class="mb-4">
-                <label for="date" class="form-label fw-semibold">Date</label>
-                <InputDate id="date" class="form-control" @bind-Value="expense.Date" />
-            </div>
-
-            <div class="d-flex gap-2">
-                <button type="submit" class="btn btn-primary px-4">Save Expense</button>
-                <a href="expenses" class="btn btn-outline-secondary px-4">Cancel</a>
-            </div>
-        </EditForm>
-    </div>
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-yellow px-4 py-2">Save Expense</button>
+            <a href="expenses" class="btn btn-outline-secondary px-4 py-2">Cancel</a>
+        </div>
+    </EditForm>
 </div>
 
 @code {

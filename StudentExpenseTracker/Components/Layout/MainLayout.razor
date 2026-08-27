@@ -1,14 +1,14 @@
 ﻿@inherits LayoutComponentBase
 
-<div class="d-flex" style="min-height: 100vh;">
-    <!-- Sidebar only -->
-    <div class="bg-dark text-white" style="width: 240px; flex-shrink: 0;">
+<div class="d-flex" style="min-height: 100vh; background-color: var(--bg-onyx);">
+    <!-- Sidebar -->
+    <div style="width: 260px; flex-shrink: 0; background-color: var(--bg-sidebar); border-right: 1px solid var(--border-color);">
         <NavMenu />
     </div>
 
-    <!-- Main Content Area (No duplicate nav here) -->
-    <div class="flex-grow-1 bg-light p-4" style="overflow-y: auto;">
-        <div class="container-fluid mx-auto" style="max-width: 1000px;">
+    <!-- Full-Width Workspace -->
+    <div class="flex-grow-1 p-5" style="overflow-y: auto;">
+        <div class="container-fluid p-0">
             @Body
         </div>
     </div>

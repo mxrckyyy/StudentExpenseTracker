@@ -3,45 +3,54 @@
 @inject ExpenseService ExpenseService
 @inject NavigationManager Navigation
 
-<h3>All Expenses</h3>
-
-<div class="mb-3">
-    <a href="add" class="btn btn-primary">Add New Expense</a>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="fw-bold m-0" style="color: var(--accent-yellow);">All Expenses</h3>
+    <a href="add" class="btn btn-yellow px-3 py-2">+ Add New Expense</a>
 </div>
 
-@if (expenses == null || !expenses.Any())
-{
-    <p>No expenses found.</p>
-}
-else
-{
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>Title</th>
-                <th>Category</th>
-                <th>Amount</th>
-                <th>Date</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var expense in expenses)
-            {
+<div class="card card-onyx shadow-lg overflow-hidden">
+    <div class="table-responsive">
+        <table class="table table-onyx m-0">
+            <thead>
                 <tr>
-                    <td>@expense.Title</td>
-                    <td>@expense.Category</td>
-                    <td>₱@expense.Amount.ToString("N2")</td>
-                    <td>@expense.Date.ToShortDateString()</td>
-                    <td>
-                        <button class="btn btn-sm btn-warning" @onclick="() => EditExpense(expense.Id)">Edit</button>
-                        <button class="btn btn-sm btn-danger" @onclick="() => DeleteExpense(expense.Id)">Delete</button>
-                    </td>
+                    <th>Expense Title</th>
+                    <th>Description</th>
+                    <th>Category</th>
+                    <th>Amount</th>
+                    <th>Date</th>
+                    <th class="text-end">Actions</th>
                 </tr>
-            }
-        </tbody>
-    </table>
-}
+            </thead>
+            <tbody>
+                @if (expenses == null || !expenses.Any())
+                {
+                    <tr>
+                        <td colspan="6" class="text-center py-4 text-muted">No expenses found.</td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var item in expenses)
+                    {
+                        <tr>
+                            <td class="fw-semibold">@item.Title</td>
+                            <td style="color: #e2e8f0; font-size: 0.95rem;">
+                                @(string.IsNullOrWhiteSpace(item.Description) ? "-" : item.Description)
+                            </td>
+                            <td><span class="badge bg-dark border border-secondary text-light">@item.Category</span></td>
+                            <td class="fw-bold" style="color: var(--accent-yellow);">₱@item.Amount.ToString("N2")</td>
+                            <td class="text-muted">@item.Date.ToShortDateString()</td>
+                            <td class="text-end">
+                                <a href="edit/@item.Id" class="btn btn-sm btn-yellow me-1">Edit</a>
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteExpense(item.Id)">Delete</button>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
 
 @code {
     private List<Expense> expenses = new();
@@ -49,11 +58,6 @@ else
     protected override void OnInitialized()
     {
         expenses = ExpenseService.GetExpenses();
-    }
-
-    private void EditExpense(int id)
-    {
-        Navigation.NavigateTo($"edit/{id}");
     }
 
     private void DeleteExpense(int id)

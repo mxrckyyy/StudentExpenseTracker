@@ -1,11 +1,96 @@
 ﻿@page "/"
+@rendermode InteractiveServer
 @inject ExpenseService ExpenseService
 
-<nav class="navbar">
-    <a class="nav-brand" href="">Expense Tracker</a>
-    <ul class="nav-links">
-        <li><NavLink href="" Match="NavLinkMatch.All">Dashboard</NavLink></li>
-        <li><NavLink href="add">Add Expense</NavLink></li>
-        <li><NavLink href="expenses">Expenses</NavLink></li>
-    </ul>
-</nav>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="fw-bold m-0" style="color: var(--accent-yellow);">Dashboard</h3>
+    <a href="add" class="btn btn-yellow px-3 py-2">+ Quick Add Expense</a>
+</div>
+
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-6 mb-3 mb-md-0">
+        <div class="card card-onyx p-3 shadow-sm h-100">
+            <div class="text-muted small fw-semibold">TOTAL SPENT</div>
+            <h2 class="fw-bold my-2" style="color: var(--accent-yellow);">
+                ₱@totalSpent.ToString("N2")
+            </h2>
+            <div class="text-muted small">Across @recentExpenses.Count logged item(s)</div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card card-onyx p-3 shadow-sm h-100 border-warning">
+            <div class="fw-bold text-warning mb-1">
+                💡 Tip to Reduce Expenses
+            </div>
+            <p class="m-0 text-light small fs-6">
+                @currentTip
+            </p>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Expenses Table (Without Description) -->
+<div class="card card-onyx shadow-lg overflow-hidden">
+    <div class="card-header bg-transparent border-bottom py-3" style="border-color: var(--border-color) !important;">
+        <h5 class="fw-bold m-0 text-light">Recent Expenses</h5>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-onyx m-0">
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Category</th>
+                    <th>Amount</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (!recentExpenses.Any())
+                {
+                    <tr>
+                        <td colspan="4" class="text-center py-4 text-muted">No recent expenses found.</td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var item in recentExpenses.Take(5))
+                    {
+                        <tr>
+                            <td class="fw-semibold">@item.Title</td>
+                            <td><span class="badge bg-dark border border-secondary text-light">@item.Category</span></td>
+                            <td class="fw-bold" style="color: var(--accent-yellow);">₱@item.Amount.ToString("N2")</td>
+                            <td class="text-muted">@item.Date.ToShortDateString()</td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    private List<Expense> recentExpenses = new();
+    private decimal totalSpent = 0;
+    private string currentTip = string.Empty;
+
+    private readonly string[] savingTips = new[]
+    {
+        "Track daily food and snack runs—small daily purchases add up quickly over a month.",
+        "Plan your weekly meals ahead of time to eliminate impulse food orders and extra food waste.",
+        "Buy your essential school supplies and daily materials in bulk rather than per piece.",
+        "Use local student discounts and public transport options whenever possible to cut travel costs.",
+        "Review recurring subscriptions monthly and cancel any apps or services you rarely use."
+    };
+
+    protected override void OnInitialized()
+    {
+        var all = ExpenseService.GetExpenses() ?? new List<Expense>();
+        recentExpenses = all.OrderByDescending(x => x.Date).ToList();
+        totalSpent = recentExpenses.Sum(x => x.Amount);
+
+        var random = new Random();
+        currentTip = savingTips[random.Next(savingTips.Length)];
+    }
+}
