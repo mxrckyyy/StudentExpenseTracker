@@ -1,0 +1,11 @@
+﻿@page "/"
+@inject ExpenseService ExpenseService
+
+<nav class="navbar">
+    <a class="nav-brand" href="">Expense Tracker</a>
+    <ul class="nav-links">
+        <li><NavLink href="" Match="NavLinkMatch.All">Dashboard</NavLink></li>
+        <li><NavLink href="add">Add Expense</NavLink></li>
+        <li><NavLink href="expenses">Expenses</NavLink></li>
+    </ul>
+</nav>

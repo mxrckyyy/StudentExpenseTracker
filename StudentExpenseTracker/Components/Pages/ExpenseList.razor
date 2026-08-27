@@ -1,0 +1,64 @@
+﻿@page "/expenses"
+@rendermode InteractiveServer
+@inject ExpenseService ExpenseService
+@inject NavigationManager Navigation
+
+<h3>All Expenses</h3>
+
+<div class="mb-3">
+    <a href="add" class="btn btn-primary">Add New Expense</a>
+</div>
+
+@if (expenses == null || !expenses.Any())
+{
+    <p>No expenses found.</p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Category</th>
+                <th>Amount</th>
+                <th>Date</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var expense in expenses)
+            {
+                <tr>
+                    <td>@expense.Title</td>
+                    <td>@expense.Category</td>
+                    <td>₱@expense.Amount.ToString("N2")</td>
+                    <td>@expense.Date.ToShortDateString()</td>
+                    <td>
+                        <button class="btn btn-sm btn-warning" @onclick="() => EditExpense(expense.Id)">Edit</button>
+                        <button class="btn btn-sm btn-danger" @onclick="() => DeleteExpense(expense.Id)">Delete</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<Expense> expenses = new();
+
+    protected override void OnInitialized()
+    {
+        expenses = ExpenseService.GetExpenses();
+    }
+
+    private void EditExpense(int id)
+    {
+        Navigation.NavigateTo($"edit/{id}");
+    }
+
+    private void DeleteExpense(int id)
+    {
+        ExpenseService.DeleteExpense(id);
+        expenses = ExpenseService.GetExpenses();
+    }
+}
