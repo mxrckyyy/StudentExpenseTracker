@@ -1,0 +1,110 @@
+﻿@page "/"
+@page "/login"
+@layout StudentExpenseTracker.Components.Layout.EmptyLayout
+@rendermode InteractiveServer
+@inject NavigationManager Navigation
+
+<PageTitle>Login - Gasto Buster</PageTitle>
+
+<div class="app-container min-vh-100 d-flex align-items-center justify-content-center position-relative text-light p-4">
+    <main style="width: 100%; max-width: 420px;">
+        <div class="text-center mb-4">
+            <div class="fw-bold fs-3 text-warning tracking-wide mb-1">GASTO BUSTER</div>
+            <p class="text-accent-blue small m-0">Secure Student Expense Management</p>
+        </div>
+
+        <div class="glass-card p-4 p-md-5 shadow-xl">
+            <div class="mb-4">
+                <h3 class="fw-bold m-0 text-white fs-4">Welcome Back</h3>
+                <p class="text-muted small m-0 mt-1">Please sign in to your account</p>
+            </div>
+
+            <EditForm Model="loginModel" OnValidSubmit="HandleLogin">
+                <div class="mb-4">
+                    <label class="minimal-label">USERNAME OR EMAIL</label>
+                    <InputText class="form-control minimal-input" @bind-Value="loginModel.Username" placeholder="e.g. student@act.edu.ph" />
+                </div>
+
+                <div class="mb-4">
+                    <label class="minimal-label">PASSWORD</label>
+                    <InputText type="password" class="form-control minimal-input" @bind-Value="loginModel.Password" placeholder="••••••••" />
+                </div>
+
+                <button type="submit" class="btn-primary-modern w-100 py-3 mb-3">Sign In</button>
+            </EditForm>
+        </div>
+    </main>
+</div>
+
+<style>
+    body, .app-container {
+        background-color: #000000 !important;
+        color: #f1f5f9 !important;
+        font-family: 'Inter', 'Segoe UI', Roboto, sans-serif;
+    }
+
+    .tracking-wide {
+        letter-spacing: 0.1em;
+    }
+
+    .glass-card {
+        background: linear-gradient(145deg, #131316 0%, #0d0d0f 100%) !important;
+        border: 1px solid rgba(255, 255, 255, 0.09) !important;
+        border-radius: 18px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    }
+
+    .text-accent-blue {
+        color: #38bdf8 !important;
+    }
+
+    .minimal-label {
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        color: #94a3b8;
+        margin-bottom: 0.5rem;
+        text-transform: uppercase;
+        display: block;
+    }
+
+    .minimal-input {
+        background-color: #08080a !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        color: #ffffff !important;
+        border-radius: 12px;
+        padding: 0.9rem 1rem;
+        font-size: 0.95rem;
+        transition: all 0.2s ease;
+    }
+
+        .minimal-input:focus {
+            border-color: #ffc107 !important;
+            box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.15), inset 0 1px 1px rgba(0,0,0,0.5) !important;
+            background-color: #0c0c0e !important;
+            outline: none;
+        }
+
+    .btn-primary-modern {
+        background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+        color: #000000;
+        border: none;
+        border-radius: 12px;
+        font-weight: 700;
+        text-align: center;
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 20px rgba(255, 193, 7, 0.25);
+    }
+
+        .btn-primary-modern:hover {
+            background: linear-gradient(135deg, #ffca2c 0%, #ffc107 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 25px rgba(255, 193, 7, 0.4);
+        }
+</style>
+
+@code {
+    private LoginModel loginModel = new();
+    private void HandleLogin() => Navigation.NavigateTo("/dashboard");
+    public class LoginModel { public string Username { get; set; } = string.Empty; public string Password { get; set; } = string.Empty; }
+}

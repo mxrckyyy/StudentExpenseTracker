@@ -1,96 +1,286 @@
-﻿@page "/"
+﻿@page "/dashboard"
+@layout StudentExpenseTracker.Components.Layout.EmptyLayout
 @rendermode InteractiveServer
 @inject ExpenseService ExpenseService
+@inject NavigationManager Navigation
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h3 class="fw-bold m-0" style="color: var(--accent-yellow);">Dashboard</h3>
-    <a href="add" class="btn btn-yellow px-3 py-2">+ Quick Add Expense</a>
-</div>
+<PageTitle>Dashboard - Gasto Buster</PageTitle>
 
-<!-- Summary Cards -->
-<div class="row mb-4">
-    <div class="col-md-6 mb-3 mb-md-0">
-        <div class="card card-onyx p-3 shadow-sm h-100">
-            <div class="text-muted small fw-semibold">TOTAL SPENT</div>
-            <h2 class="fw-bold my-2" style="color: var(--accent-yellow);">
-                ₱@totalSpent.ToString("N2")
-            </h2>
-            <div class="text-muted small">Across @recentExpenses.Count logged item(s)</div>
+<div class="app-container min-vh-100 position-relative text-light">
+    <!-- Header -->
+    <header class="app-header d-flex justify-content-between align-items-center px-4 py-3">
+        <button type="button" class="btn-icon text-warning shadow-none border-0 bg-transparent" @onclick="ToggleSidebar">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+        </button>
+        <div class="fw-bold fs-5 text-warning tracking-wide">GASTO BUSTER</div>
+        <div style="width: 24px;"></div>
+    </header>
+
+    <!-- Sidebar Drawer -->
+    <div class="sidebar-drawer @(isSidebarOpen ? "open" : "")">
+        <div class="d-flex justify-content-between align-items-center p-4 border-bottom-subtle">
+            <h3 class="text-warning fw-bold m-0 fs-5 tracking-wide">MENU</h3>
+            <button type="button" class="btn-icon text-muted border-0 bg-transparent" @onclick="ToggleSidebar">✕</button>
+        </div>
+        <div class="p-3">
+            <ul class="nav flex-column gap-2">
+                <li><a href="/dashboard" class="nav-item-link active">Dashboard</a></li>
+                <li><a href="/add-expense" class="nav-item-link">Add Expense</a></li>
+                <li><a href="/expenses" class="nav-item-link">Expenses List</a></li>
+            </ul>
         </div>
     </div>
+    @if (isSidebarOpen)
+    {
+        <div class="sidebar-backdrop" @onclick="ToggleSidebar"></div>
+    }
 
-    <div class="col-md-6">
-        <div class="card card-onyx p-3 shadow-sm h-100 border-warning">
-            <div class="fw-bold text-warning mb-1">
-                💡 Tip to Reduce Expenses
+    <!-- Main Content -->
+    <main class="mx-auto p-4 p-md-5" style="max-width: 1000px;">
+        <div class="d-flex justify-content-between align-items-end mb-4 pb-2">
+            <div>
+                <h2 class="fw-bold m-0 text-white">Dashboard</h2>
+                <p class="text-accent-blue small m-0 mt-1">Overview of your financial activity</p>
             </div>
-            <p class="m-0 text-light small fs-6">
-                @currentTip
-            </p>
+            <a href="/add-expense" class="btn-primary-modern px-4 py-2 text-decoration-none d-flex align-items-center gap-2">
+                <span class="fs-5 lh-1">+</span> Add Expense
+            </a>
         </div>
-    </div>
+
+        <!-- Metric Cards -->
+        <div class="row gx-4 mb-4">
+            <div class="col-md-6 mb-3 mb-md-0">
+                <div class="glass-card p-4 position-relative overflow-hidden">
+                    <span class="minimal-label">TOTAL SPENT</span>
+                    <h3 class="text-warning fw-bold mt-2 mb-0 fs-2">₱@totalSpent.ToString("N2")</h3>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="glass-card p-4 position-relative overflow-hidden">
+                    <span class="minimal-label">TOTAL TRANSACTIONS</span>
+                    <h3 class="text-white fw-bold mt-2 mb-0 fs-2">@totalCount</h3>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gasto Financial Tip Card -->
+        <div class="glass-card p-4 mb-4 border-accent-blue-subtle">
+            <div class="d-flex align-items-center gap-3">
+                <div class="p-2 rounded-3 bg-accent-blue bg-opacity-10 text-accent-blue">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                </div>
+                <div>
+                    <h6 class="text-white fw-bold m-0">Gasto Smart Tip</h6>
+                    <p class="text-muted small m-0 mt-1">@currentTip</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Activity Card -->
+        <div class="glass-card p-4 shadow-xl">
+            <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom-subtle">
+                <h5 class="fw-bold m-0 text-white">Recent Transactions</h5>
+                <a href="/expenses" class="text-accent-blue small text-decoration-none fw-semibold">View All →</a>
+            </div>
+
+            @if (recentExpenses == null || !recentExpenses.Any())
+            {
+                <div class="text-center py-5 text-muted small">No recent transactions found.</div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table modern-table mb-0">
+                        <thead>
+                            <tr>
+                                <th>TITLE</th>
+                                <th>CATEGORY</th>
+                                <th>DATE</th>
+                                <th class="text-end">AMOUNT</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in recentExpenses)
+                            {
+                                <tr>
+                                    <td class="fw-bold text-white">@(item.Title ?? "Untitled")</td>
+                                    <td><span class="badge-accent">@(string.IsNullOrEmpty(item.Category) ? "General" : item.Category)</span></td>
+                                    <td class="text-muted">@item.Date.ToString("MMM dd, yyyy")</td>
+                                    <td class="text-warning fw-bold text-end">₱@item.Amount.ToString("N2")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </main>
 </div>
 
-<!-- Recent Expenses Table (Without Description) -->
-<div class="card card-onyx shadow-lg overflow-hidden">
-    <div class="card-header bg-transparent border-bottom py-3" style="border-color: var(--border-color) !important;">
-        <h5 class="fw-bold m-0 text-light">Recent Expenses</h5>
-    </div>
-    <div class="table-responsive">
-        <table class="table table-onyx m-0">
-            <thead>
-                <tr>
-                    <th>Title</th>
-                    <th>Category</th>
-                    <th>Amount</th>
-                    <th>Date</th>
-                </tr>
-            </thead>
-            <tbody>
-                @if (!recentExpenses.Any())
-                {
-                    <tr>
-                        <td colspan="4" class="text-center py-4 text-muted">No recent expenses found.</td>
-                    </tr>
-                }
-                else
-                {
-                    @foreach (var item in recentExpenses.Take(5))
-                    {
-                        <tr>
-                            <td class="fw-semibold">@item.Title</td>
-                            <td><span class="badge bg-dark border border-secondary text-light">@item.Category</span></td>
-                            <td class="fw-bold" style="color: var(--accent-yellow);">₱@item.Amount.ToString("N2")</td>
-                            <td class="text-muted">@item.Date.ToShortDateString()</td>
-                        </tr>
-                    }
-                }
-            </tbody>
-        </table>
-    </div>
-</div>
+<style>
+    body, .app-container {
+        background-color: #000000 !important;
+        color: #f1f5f9 !important;
+        font-family: 'Inter', 'Segoe UI', Roboto, sans-serif;
+    }
+
+    .app-header {
+        background-color: rgba(10, 10, 10, 0.85) !important;
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+    }
+
+    .tracking-wide {
+        letter-spacing: 0.1em;
+    }
+
+    .border-bottom-subtle {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+    }
+
+    .border-accent-blue-subtle {
+        border: 1px solid rgba(56, 189, 248, 0.2) !important;
+    }
+
+    .glass-card {
+        background: linear-gradient(145deg, #131316 0%, #0d0d0f 100%) !important;
+        border: 1px solid rgba(255, 255, 255, 0.09) !important;
+        border-radius: 18px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.9);
+    }
+
+    .text-accent-blue {
+        color: #38bdf8 !important;
+    }
+
+    .badge-accent {
+        background-color: rgba(56, 189, 248, 0.1);
+        color: #38bdf8;
+        border: 1px solid rgba(56, 189, 248, 0.2);
+        padding: 0.35rem 0.75rem;
+        border-radius: 8px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .btn-primary-modern {
+        background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+        color: #000000;
+        border: none;
+        border-radius: 12px;
+        font-weight: 700;
+        transition: all 0.2s ease;
+    }
+
+        .btn-primary-modern:hover {
+            background: linear-gradient(135deg, #ffca2c 0%, #ffc107 100%);
+        }
+
+    .minimal-label {
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        color: #94a3b8;
+        text-transform: uppercase;
+    }
+
+    .modern-table {
+        width: 100%;
+        color: #f1f5f9;
+    }
+
+        .modern-table th {
+            color: #64748b !important;
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 1.25rem 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            background: transparent;
+        }
+
+        .modern-table td {
+            padding: 1.15rem 1rem;
+            background: transparent;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
+            vertical-align: middle;
+        }
+
+    .sidebar-drawer {
+        position: fixed;
+        top: 0;
+        left: -300px;
+        width: 280px;
+        height: 100vh;
+        background-color: #0a0a0c !important;
+        z-index: 1050;
+        transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+    }
+
+        .sidebar-drawer.open {
+            left: 0;
+        }
+
+    .sidebar-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.75);
+        z-index: 1040;
+    }
+
+    .nav-item-link {
+        display: block;
+        padding: 1rem 1.25rem;
+        color: #94a3b8;
+        text-decoration: none;
+        font-weight: 500;
+        border-radius: 8px;
+        margin-bottom: 0.25rem;
+    }
+
+        .nav-item-link.active {
+            background: linear-gradient(90deg, rgba(255, 193, 7, 0.12) 0%, transparent 100%);
+            color: #ffc107;
+            border-left: 3px solid #ffc107;
+        }
+</style>
 
 @code {
-    private List<Expense> recentExpenses = new();
+    private bool isSidebarOpen = false;
+    private void ToggleSidebar() => isSidebarOpen = !isSidebarOpen;
     private decimal totalSpent = 0;
-    private string currentTip = string.Empty;
-
-    private readonly string[] savingTips = new[]
-    {
-        "Track daily food and snack runs—small daily purchases add up quickly over a month.",
-        "Plan your weekly meals ahead of time to eliminate impulse food orders and extra food waste.",
-        "Buy your essential school supplies and daily materials in bulk rather than per piece.",
-        "Use local student discounts and public transport options whenever possible to cut travel costs.",
-        "Review recurring subscriptions monthly and cancel any apps or services you rarely use."
-    };
+    private int totalCount = 0;
+    private List<Expense> recentExpenses = new();
+    private string currentTip = "Try packing lunch or snacks instead of buying out to easily save ₱300–₱500 a week!";
 
     protected override void OnInitialized()
     {
-        var all = ExpenseService.GetExpenses() ?? new List<Expense>();
-        recentExpenses = all.OrderByDescending(x => x.Date).ToList();
-        totalSpent = recentExpenses.Sum(x => x.Amount);
+        LoadDashboardData();
+    }
 
-        var random = new Random();
-        currentTip = savingTips[random.Next(savingTips.Length)];
+    private void LoadDashboardData()
+    {
+        try
+        {
+            var allExpenses = ExpenseService.GetExpenses();
+            if (allExpenses != null)
+            {
+                totalSpent = allExpenses.Sum(e => e.Amount);
+                totalCount = allExpenses.Count();
+                recentExpenses = allExpenses.OrderByDescending(e => e.Date).Take(5).ToList();
+            }
+        }
+        catch
+        {
+            totalSpent = 0;
+            totalCount = 0;
+            recentExpenses = new();
+        }
     }
 }

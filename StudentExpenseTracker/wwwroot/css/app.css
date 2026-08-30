@@ -1,170 +1,202 @@
-:root {
-    --bg-onyx: #121212;
-    --bg-card: #1e1e1e;
-    --bg-sidebar: #0a0a0a;
-    --accent-yellow: #ffc107;
-    --text-primary: #f8f9fa;
-    --text-muted: #a0a0a0;
-    --border-color: #2d2d2d;
-}
-
+/* Core App Theme - Fintech Minimalist */
 body {
-    background-color: var(--bg-onyx) !important;
-    color: var(--text-primary) !important;
-    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    margin: 0;
+    background-color: #121212;
+    font-family: 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+.app-container {
+    background-color: #121212;
+}
+
+.app-header {
+    background-color: rgba(24, 24, 24, 0.8);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.tracking-wide {
+    letter-spacing: 0.1em;
+}
+
+.border-bottom-subtle {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Surfaces & Cards */
+.glass-card {
+    background-color: #1e1e1e;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+}
+
+/* Forms & Inputs */
+.minimal-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: #888;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+}
+
+.minimal-input, .minimal-select {
+    background-color: #121212 !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: #ffffff !important;
+    border-radius: 10px;
+    padding: 0.8rem 1rem;
+    font-size: 1rem;
+    transition: all 0.2s ease-in-out;
+}
+
+    .minimal-input:focus, .minimal-select:focus {
+        border-color: #ffc107 !important;
+        box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.15) !important;
+        background-color: #161616 !important;
+        outline: none;
+    }
+
+.minimal-select {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23888888' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e") !important;
+}
+
+/* Buttons */
+.btn-icon {
+    background: transparent;
+    border: none;
     padding: 0;
-}
-
-/* Base Responsive Layout Structure */
-.app-layout {
     display: flex;
-    min-height: 100vh;
-    background-color: var(--bg-onyx);
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.2s;
+}
+
+    .btn-icon:hover {
+        opacity: 0.7;
+    }
+
+.btn-primary-modern {
+    background-color: #ffc107;
+    color: #121212;
+    border: none;
+    border-radius: 10px;
+    font-weight: 700;
+    padding: 0.8rem 1.5rem;
+    transition: all 0.2s ease;
+    text-align: center;
+}
+
+    .btn-primary-modern:hover {
+        background-color: #ffca2c;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(255, 193, 7, 0.25);
+    }
+
+.btn-secondary-modern {
+    background-color: transparent;
+    color: #adb5bd;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    font-weight: 600;
+    padding: 0.8rem 1.5rem;
+    transition: all 0.2s ease;
+    text-align: center;
+    text-decoration: none;
+}
+
+    .btn-secondary-modern:hover {
+        background-color: rgba(255, 255, 255, 0.05);
+        color: #ffffff;
+    }
+
+/* Tables (Ledger Style) */
+.modern-table {
     width: 100%;
+    color: #e9ecef;
 }
 
-.sidebar-wrapper {
-    width: 260px;
-    flex-shrink: 0;
-    background-color: var(--bg-sidebar);
-    border-right: 1px solid var(--border-color);
-}
-
-.main-workspace {
-    flex-grow: 1;
-    padding: 2.5rem;
-    overflow-y: auto;
-    min-width: 0; /* Prevents tables from overflowing layout */
-}
-
-/* Navigation & Hamburger Header */
-.bg-sidebar {
-    background-color: var(--bg-sidebar, #0a0a0a) !important;
-}
-
-.nav-link {
-    color: #e2e8f0 !important;
-    transition: background-color 0.2s ease;
-}
-
-    .nav-link:hover {
-        background-color: #2a2a2a !important;
+    .modern-table th {
+        color: #6c757d;
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        padding: 1.5rem 1rem 0.75rem 1rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        background: transparent;
     }
 
-    .nav-link.active {
-        background-color: var(--accent-yellow, #ffc107) !important;
-        color: #000000 !important;
+    .modern-table td {
+        padding: 1.25rem 1rem;
+        background: transparent;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+        vertical-align: middle;
     }
 
-/* Off-Canvas Slide-Out Drawer (Portal Style) */
-.offcanvas-drawer {
+    .modern-table tr:hover td {
+        background-color: rgba(255, 255, 255, 0.02);
+    }
+
+.category-badge {
+    background-color: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 0.35rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    color: #ced4da;
+}
+
+/* Sidebar Drawer */
+.sidebar-drawer {
     position: fixed;
     top: 0;
-    left: -280px;
+    left: -300px;
     width: 280px;
     height: 100vh;
-    background-color: var(--bg-sidebar, #0a0a0a);
+    background-color: #181818;
     z-index: 1050;
-    transition: left 0.3s ease-in-out;
-    box-shadow: 4px 0 15px rgba(0, 0, 0, 0.5);
-    overflow-y: auto;
+    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 10px 0 30px rgba(0,0,0,0.5);
 }
 
-    .offcanvas-drawer.open {
+    .sidebar-drawer.open {
         left: 0;
     }
 
-.offcanvas-backdrop {
+.sidebar-backdrop {
     position: fixed;
     top: 0;
     left: 0;
     width: 100vw;
     height: 100vh;
-    background-color: rgba(0, 0, 0, 0.6);
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(2px);
     z-index: 1040;
 }
 
-/* Cards */
-.card-onyx {
-    background-color: var(--bg-card);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
+.nav-item-link {
+    display: block;
+    padding: 1rem 1.25rem;
+    color: #adb5bd;
+    text-decoration: none;
+    font-weight: 500;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    margin-bottom: 0.25rem;
 }
 
-/* Form Controls */
-.form-control-onyx {
-    background-color: #2b2b2b !important;
-    border: 1px solid #3d3d3d !important;
-    color: #ffffff !important;
-    padding: 0.75rem 1rem !important;
-    font-size: 1.05rem !important;
-}
-
-    .form-control-onyx:focus {
-        border-color: var(--accent-yellow) !important;
-        box-shadow: 0 0 0 0.25rem rgba(255, 193, 7, 0.25) !important;
+    .nav-item-link:hover {
+        background-color: rgba(255, 255, 255, 0.03);
+        color: #ffffff;
     }
 
-/* Buttons */
-.btn-yellow {
-    background-color: var(--accent-yellow);
-    color: #000000;
-    font-weight: 600;
-    border: none;
-}
-
-    .btn-yellow:hover {
-        background-color: #e0a800;
-        color: #000000;
+    .nav-item-link.active {
+        background-color: rgba(255, 193, 7, 0.1);
+        color: #ffc107;
+        border-left: 3px solid #ffc107;
+        border-radius: 0 8px 8px 0;
     }
-
-/* Tables */
-.table-onyx {
-    color: var(--text-primary);
-    border-color: var(--border-color);
-    font-size: 1.1rem;
-    width: 100%;
-}
-
-    .table-onyx th {
-        background-color: #181818;
-        color: var(--accent-yellow);
-        border-bottom: 2px solid var(--border-color);
-        padding: 1rem 1.25rem !important;
-    }
-
-    .table-onyx td {
-        background-color: var(--bg-card);
-        border-color: var(--border-color);
-        vertical-align: middle;
-        padding: 1.1rem 1.25rem !important;
-    }
-
-.text-description {
-    color: #e2e8f0 !important;
-    font-size: 0.95rem;
-}
-
-/* Mobile & Tablet Responsiveness */
-@media (max-width: 767.98px) {
-    .app-layout {
-        flex-direction: column;
-    }
-
-    .sidebar-wrapper {
-        width: 100%;
-        border-right: none;
-        border-bottom: 1px solid var(--border-color);
-    }
-
-    .main-workspace {
-        padding: 1rem;
-    }
-
-    .table-onyx th,
-    .table-onyx td {
-        padding: 0.75rem 0.5rem !important;
-        font-size: 0.95rem;
-    }
-}

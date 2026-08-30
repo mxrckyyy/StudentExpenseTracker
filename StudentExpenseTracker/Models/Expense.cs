@@ -15,7 +15,7 @@ namespace StudentExpenseTracker.Models
         public decimal Amount { get; set; }
 
         [Required(ErrorMessage = "Category is required")]
-        public string Category { get; set; } = string.Empty;
+        public string Category { get; set; } = "General";
 
         public DateTime Date { get; set; } = DateTime.Today;
     }

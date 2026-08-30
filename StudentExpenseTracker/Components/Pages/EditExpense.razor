@@ -1,87 +1,267 @@
 ﻿@page "/edit/{id:int}"
+@layout StudentExpenseTracker.Components.Layout.EmptyLayout
 @rendermode InteractiveServer
 @inject ExpenseService ExpenseService
 @inject NavigationManager Navigation
 
-<div class="card card-onyx shadow-lg p-4">
-    <h3 class="fw-bold mb-4" style="color: var(--accent-yellow);">Edit Expense</h3>
+<PageTitle>Edit Expense - Gasto Buster</PageTitle>
 
-    @if (expense == null)
+<div class="app-container min-vh-100 position-relative text-light">
+    <!-- Header -->
+    <header class="app-header d-flex justify-content-between align-items-center px-4 py-3">
+        <button type="button" class="btn-icon text-warning shadow-none border-0 bg-transparent" @onclick="ToggleSidebar">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+        </button>
+        <div class="fw-bold fs-5 text-warning tracking-wide">GASTO BUSTER</div>
+        <div style="width: 24px;"></div>
+    </header>
+
+    <!-- Sidebar Drawer -->
+    <div class="sidebar-drawer @(isSidebarOpen ? "open" : "")">
+        <div class="d-flex justify-content-between align-items-center p-4 border-bottom-subtle">
+            <h3 class="text-warning fw-bold m-0 fs-5 tracking-wide">MENU</h3>
+            <button type="button" class="btn-icon text-muted border-0 bg-transparent" @onclick="ToggleSidebar">✕</button>
+        </div>
+        <div class="p-3">
+            <ul class="nav flex-column gap-2">
+                <li><a href="/dashboard" class="nav-item-link">Dashboard</a></li>
+                <li><a href="/add-expense" class="nav-item-link">Add Expense</a></li>
+                <li><a href="/expenses" class="nav-item-link">Expenses List</a></li>
+            </ul>
+        </div>
+    </div>
+    @if (isSidebarOpen)
     {
-        <p class="text-muted"><em>Loading expense details...</em></p>
+        <div class="sidebar-backdrop" @onclick="ToggleSidebar"></div>
     }
-    else
-    {
-        <EditForm Model="expense" OnValidSubmit="HandleSubmit">
-            <DataAnnotationsValidator /> 
-            <ValidationSummary class="text-danger mb-3" />
 
-            <div class="mb-3">
-                <label class="form-label text-light fw-semibold">Expense Title</label>
-                <InputText class="form-control form-control-onyx" @bind-Value="expense.Title" />
+    <!-- Main Content -->
+    <main class="mx-auto p-4 p-md-5" style="max-width: 700px;">
+        <div class="glass-card p-4 p-md-5 shadow-xl">
+            <div class="mb-4 pb-3 border-bottom-subtle">
+                <h2 class="fw-bold m-0 text-white">Edit Transaction</h2>
+                <p class="text-accent-blue small m-0 mt-1">Update details for this spending entry.</p>
             </div>
 
-            <div class="mb-3">
-                <label class="form-label text-light fw-semibold">Description</label>
-                <InputText class="form-control form-control-onyx" @bind-Value="expense.Description" />
-            </div>
-
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label class="form-label text-light fw-semibold">Amount (₱)</label>
-                    <InputNumber class="form-control form-control-onyx" @bind-Value="expense.Amount" />
+            @if (expense == null)
+            {
+                <div class="text-center py-4">
+                    <p class="text-muted">Loading expense details or transaction not found...</p>
+                    <a href="/expenses" class="btn-secondary-modern py-2 px-4 text-decoration-none">Back to List</a>
                 </div>
+            }
+            else
+            {
+                <EditForm Model="expense" OnValidSubmit="HandleSubmit">
+                    <DataAnnotationsValidator />
 
-                <div class="col-md-6 mb-3">
-                    <label class="form-label text-light fw-semibold">Category</label>
-                    <InputSelect class="form-select form-control-onyx" @bind-Value="expense.Category">
-                        <option value="">Select Category</option>
-                        <option value="Food">Food</option>
-                        <option value="Transport">Transport</option>
-                        <option value="School Supplies">School Supplies</option>
-                        <option value="Entertainment">Entertainment</option>
-                        <option value="Other">Other</option>
-                    </InputSelect>
-                </div>
-            </div>
+                    <div class="mb-4">
+                        <label class="minimal-label">EXPENSE TITLE</label>
+                        <InputText class="form-control minimal-input" @bind-Value="expense.Title" placeholder="e.g. Textbooks or Coffee" />
+                    </div>
 
-            <div class="mb-4">
-                <label class="form-label text-light fw-semibold">Date</label>
-                <InputDate class="form-control form-control-onyx" @bind-Value="expense.Date" />
-            </div>
+                    <div class="row gx-4">
+                        <div class="col-md-6 mb-4">
+                            <label class="minimal-label">AMOUNT (₱)</label>
+                            <div class="position-relative">
+                                <span class="position-absolute top-50 start-0 translate-middle-y ms-3 text-muted fw-bold">₱</span>
+                                <input type="number" step="0.01" class="form-control minimal-input ps-5" @bind="expense.Amount" placeholder="0.00" />
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-4">
+                            <label class="minimal-label">CATEGORY</label>
+                            <InputSelect class="form-select minimal-select" @bind-Value="expense.Category">
+                                <option value="">Select Category</option>
+                                <option value="Food">Food</option>
+                                <option value="Transport">Transport</option>
+                                <option value="School Supplies">School Supplies</option>
+                                <option value="Entertainment">Entertainment</option>
+                                <option value="Other">Other</option>
+                            </InputSelect>
+                        </div>
+                    </div>
 
-            <div class="d-flex gap-2">
-                <button type="submit" class="btn btn-yellow px-4 py-2">Save Changes</button>
-                <a href="expenses" class="btn btn-outline-secondary px-4 py-2">Cancel</a>
-            </div>
-        </EditForm>
-    }
+                    <div class="mb-5">
+                        <label class="minimal-label">DATE</label>
+                        <InputDate class="form-control minimal-input" @bind-Value="expense.Date" />
+                    </div>
+
+                    <div class="d-flex gap-3 pt-2">
+                        <button type="submit" class="btn-primary-modern flex-grow-1 py-3">Save Changes</button>
+                        <a href="/expenses" class="btn-secondary-modern py-3">Cancel</a>
+                    </div>
+                </EditForm>
+            }
+        </div>
+    </main>
 </div>
+
+<style>
+    body, .app-container {
+        background-color: #000000 !important;
+        color: #f1f5f9 !important;
+        font-family: 'Inter', 'Segoe UI', Roboto, sans-serif;
+    }
+
+    .app-header {
+        background-color: rgba(10, 10, 10, 0.85) !important;
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+    }
+
+    .tracking-wide {
+        letter-spacing: 0.1em;
+    }
+
+    .border-bottom-subtle {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+    }
+
+    .glass-card {
+        background: linear-gradient(145deg, #131316 0%, #0d0d0f 100%) !important;
+        border: 1px solid rgba(255, 255, 255, 0.09) !important;
+        border-radius: 18px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.9);
+    }
+
+    .text-accent-blue {
+        color: #38bdf8 !important;
+    }
+
+    .minimal-label {
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        color: #94a3b8;
+        margin-bottom: 0.5rem;
+        text-transform: uppercase;
+        display: block;
+    }
+
+    .minimal-input, .minimal-select {
+        background-color: #08080a !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        color: #ffffff !important;
+        border-radius: 12px;
+        padding: 0.9rem 1rem;
+        font-size: 0.95rem;
+    }
+
+        .minimal-input:focus, .minimal-select:focus {
+            border-color: #ffc107 !important;
+            box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.15) !important;
+            outline: none;
+            background-color: #0c0c0e !important;
+        }
+
+    .btn-primary-modern {
+        background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+        color: #000000;
+        border: none;
+        border-radius: 12px;
+        font-weight: 700;
+        text-align: center;
+        transition: all 0.2s ease;
+    }
+
+        .btn-primary-modern:hover {
+            background: linear-gradient(135deg, #ffca2c 0%, #ffc107 100%);
+        }
+
+    .btn-secondary-modern {
+        background-color: transparent;
+        color: #94a3b8;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        font-weight: 600;
+        text-align: center;
+        text-decoration: none;
+        padding: 0 1.5rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+        .btn-secondary-modern:hover {
+            color: #ffffff;
+            border-color: rgba(255, 255, 255, 0.25);
+            background-color: rgba(255, 255, 255, 0.03);
+        }
+
+    .sidebar-drawer {
+        position: fixed;
+        top: 0;
+        left: -300px;
+        width: 280px;
+        height: 100vh;
+        background-color: #0a0a0c !important;
+        z-index: 1050;
+        transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+    }
+
+        .sidebar-drawer.open {
+            left: 0;
+        }
+
+    .sidebar-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.75);
+        z-index: 1040;
+    }
+
+    .nav-item-link {
+        display: block;
+        padding: 1rem 1.25rem;
+        color: #94a3b8;
+        text-decoration: none;
+        font-weight: 500;
+        border-radius: 8px;
+        margin-bottom: 0.25rem;
+    }
+
+        .nav-item-link.active {
+            background: linear-gradient(90deg, rgba(255, 193, 7, 0.12) 0%, transparent 100%);
+            color: #ffc107;
+            border-left: 3px solid #ffc107;
+        }
+</style>
 
 @code {
     [Parameter]
-    public int Id { get; set; }
+    public int id { get; set; }
 
+    private bool isSidebarOpen = false;
+    private void ToggleSidebar() => isSidebarOpen = !isSidebarOpen;
     private Expense? expense;
 
     protected override void OnInitialized()
     {
-        var existing = ExpenseService.GetExpenseById(Id);
-        if (existing != null)
+        try
         {
-            expense = new Expense
+            var existing = ExpenseService.GetExpenses().FirstOrDefault(e => e.Id == id);
+            if (existing != null)
             {
-                Id = existing.Id,
-                Title = existing.Title,
-                Description = existing.Description,
-                Amount = existing.Amount,
-                Category = existing.Category,
-                Date = existing.Date
-            };
+                expense = new Expense
+                {
+                    Id = existing.Id,
+                    Title = existing.Title,
+                    Amount = existing.Amount,
+                    Category = existing.Category,
+                    Date = existing.Date
+                };
+            }
         }
-        else
+        catch
         {
-            Navigation.NavigateTo("expenses");
+            expense = null;
         }
     }
 
@@ -90,7 +270,7 @@
         if (expense != null)
         {
             ExpenseService.UpdateExpense(expense);
-            Navigation.NavigateTo("expenses");
+            Navigation.NavigateTo("/expenses");
         }
     }
 }

@@ -1,68 +1,292 @@
 ﻿@page "/expenses"
+@layout StudentExpenseTracker.Components.Layout.EmptyLayout
 @rendermode InteractiveServer
 @inject ExpenseService ExpenseService
 @inject NavigationManager Navigation
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h3 class="fw-bold m-0" style="color: var(--accent-yellow);">All Expenses</h3>
-    <a href="add" class="btn btn-yellow px-3 py-2">+ Add New Expense</a>
+<PageTitle>Expenses List - Gasto Buster</PageTitle>
+
+<div class="app-container min-vh-100 position-relative text-light">
+    <!-- Header -->
+    <header class="app-header d-flex justify-content-between align-items-center px-4 py-3">
+        <button type="button" class="btn-icon text-warning shadow-none border-0 bg-transparent" @onclick="ToggleSidebar">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+        </button>
+        <div class="fw-bold fs-5 text-warning tracking-wide">GASTO BUSTER</div>
+        <div style="width: 24px;"></div>
+    </header>
+
+    <!-- Sidebar Drawer -->
+    <div class="sidebar-drawer @(isSidebarOpen ? "open" : "")">
+        <div class="d-flex justify-content-between align-items-center p-4 border-bottom-subtle">
+            <h3 class="text-warning fw-bold m-0 fs-5 tracking-wide">MENU</h3>
+            <button type="button" class="btn-icon text-muted border-0 bg-transparent" @onclick="ToggleSidebar">✕</button>
+        </div>
+        <div class="p-3">
+            <ul class="nav flex-column gap-2">
+                <li><a href="/dashboard" class="nav-item-link">Dashboard</a></li>
+                <li><a href="/add-expense" class="nav-item-link">Add Expense</a></li>
+                <li><a href="/expenses" class="nav-item-link active">Expenses List</a></li>
+            </ul>
+        </div>
+    </div>
+    @if (isSidebarOpen)
+    {
+        <div class="sidebar-backdrop" @onclick="ToggleSidebar"></div>
+    }
+
+    <!-- Main Content -->
+    <main class="mx-auto p-4 p-md-5" style="max-width: 1000px;">
+        <div class="d-flex justify-content-between align-items-end mb-4 pb-2">
+            <div>
+                <h2 class="fw-bold m-0 text-white">Expenses List</h2>
+                <p class="text-accent-blue small m-0 mt-1">Track, edit, and review your spending</p>
+            </div>
+            <a href="/add-expense" class="btn-primary-modern px-4 py-2 text-decoration-none d-flex align-items-center gap-2">
+                <span class="fs-5 lh-1">+</span> New Expense
+            </a>
+        </div>
+
+        <div class="glass-card shadow-xl">
+            @if (expenses == null || !expenses.Any())
+            {
+                <div class="text-center py-5">
+                    <div class="text-muted mb-3 opacity-50">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="2" y="4" width="20" height="16" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
+                    </div>
+                    <h5 class="text-white fw-semibold">No expenses found</h5>
+                    <p class="text-muted small mb-4">You haven't recorded any transactions yet.</p>
+                    <a href="/add-expense" class="btn-secondary-modern text-decoration-none py-2 px-4">Add First Expense</a>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table modern-table mb-0">
+                        <thead>
+                            <tr>
+                                <th>TITLE</th>
+                                <th>CATEGORY</th>
+                                <th>DATE</th>
+                                <th class="text-end">AMOUNT</th>
+                                <th class="text-end" style="width: 120px;">ACTIONS</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in expenses)
+                            {
+                                <tr>
+                                    <td class="fw-bold text-white">@(item.Title ?? "Untitled")</td>
+                                    <td><span class="badge-accent">@(string.IsNullOrEmpty(item.Category) ? "General" : item.Category)</span></td>
+                                    <td class="text-muted">@item.Date.ToString("MMM dd, yyyy")</td>
+                                    <td class="text-warning fw-bold text-end fs-5">₱@item.Amount.ToString("N2")</td>
+                                    <td class="text-end">
+                                        <div class="d-flex justify-content-end gap-2">
+                                            <a href="/edit/@item.Id" class="btn-action btn-edit" title="Edit">
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                                            </a>
+                                            <button type="button" class="btn-action btn-delete" title="Delete" @onclick="() => DeleteExpense(item.Id)">
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </main>
 </div>
 
-<div class="card card-onyx shadow-lg overflow-hidden">
-    <div class="table-responsive">
-        <table class="table table-onyx m-0">
-            <thead>
-                <tr>
-                    <th>Expense Title</th>
-                    <th>Description</th>
-                    <th>Category</th>
-                    <th>Amount</th>
-                    <th>Date</th>
-                    <th class="text-end">Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                @if (expenses == null || !expenses.Any())
-                {
-                    <tr>
-                        <td colspan="6" class="text-center py-4 text-muted">No expenses found.</td>
-                    </tr>
-                }
-                else
-                {
-                    @foreach (var item in expenses)
-                    {
-                        <tr>
-                            <td class="fw-semibold">@item.Title</td>
-                            <td style="color: #e2e8f0; font-size: 0.95rem;">
-                                @(string.IsNullOrWhiteSpace(item.Description) ? "-" : item.Description)
-                            </td>
-                            <td><span class="badge bg-dark border border-secondary text-light">@item.Category</span></td>
-                            <td class="fw-bold" style="color: var(--accent-yellow);">₱@item.Amount.ToString("N2")</td>
-                            <td class="text-muted">@item.Date.ToShortDateString()</td>
-                            <td class="text-end">
-                                <a href="edit/@item.Id" class="btn btn-sm btn-yellow me-1">Edit</a>
-                                <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteExpense(item.Id)">Delete</button>
-                            </td>
-                        </tr>
-                    }
-                }
-            </tbody>
-        </table>
-    </div>
-</div>
+<style>
+    body, .app-container {
+        background-color: #000000 !important;
+        color: #f1f5f9 !important;
+        font-family: 'Inter', 'Segoe UI', Roboto, sans-serif;
+    }
+
+    .app-header {
+        background-color: rgba(10, 10, 10, 0.85) !important;
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+    }
+
+    .tracking-wide {
+        letter-spacing: 0.1em;
+    }
+
+    .border-bottom-subtle {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+    }
+
+    .glass-card {
+        background: linear-gradient(145deg, #131316 0%, #0d0d0f 100%) !important;
+        border: 1px solid rgba(255, 255, 255, 0.09) !important;
+        border-radius: 18px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.9);
+    }
+
+    .text-accent-blue {
+        color: #38bdf8 !important;
+    }
+
+    .badge-accent {
+        background-color: rgba(56, 189, 248, 0.1);
+        color: #38bdf8;
+        border: 1px solid rgba(56, 189, 248, 0.2);
+        padding: 0.35rem 0.75rem;
+        border-radius: 8px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .btn-primary-modern {
+        background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+        color: #000000;
+        border: none;
+        border-radius: 12px;
+        font-weight: 700;
+    }
+
+    .btn-secondary-modern {
+        background-color: transparent;
+        color: #94a3b8;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+    .modern-table {
+        width: 100%;
+        color: #f1f5f9;
+    }
+
+        .modern-table th {
+            color: #64748b !important;
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 1.25rem 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            background: transparent;
+        }
+
+        .modern-table td {
+            padding: 1.15rem 1rem;
+            background: transparent;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
+            vertical-align: middle;
+        }
+
+    .btn-action {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        transition: all 0.2s ease;
+        cursor: pointer;
+        text-decoration: none;
+    }
+
+    .btn-edit {
+        background-color: rgba(56, 189, 248, 0.08);
+        color: #38bdf8;
+    }
+
+        .btn-edit:hover {
+            background-color: rgba(56, 189, 248, 0.2);
+            color: #ffffff;
+            border-color: rgba(56, 189, 248, 0.4);
+        }
+
+    .btn-delete {
+        background-color: rgba(239, 68, 68, 0.08);
+        color: #ef4444;
+    }
+
+        .btn-delete:hover {
+            background-color: rgba(239, 68, 68, 0.2);
+            color: #ffffff;
+            border-color: rgba(239, 68, 68, 0.4);
+        }
+
+    .sidebar-drawer {
+        position: fixed;
+        top: 0;
+        left: -300px;
+        width: 280px;
+        height: 100vh;
+        background-color: #0a0a0c !important;
+        z-index: 1050;
+        transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+        .sidebar-drawer.open {
+            left: 0;
+        }
+
+    .sidebar-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.75);
+        z-index: 1040;
+    }
+
+    .nav-item-link {
+        display: block;
+        padding: 1rem 1.25rem;
+        color: #94a3b8;
+        text-decoration: none;
+        font-weight: 500;
+        border-radius: 8px;
+        margin-bottom: 0.25rem;
+    }
+
+        .nav-item-link.active {
+            background: linear-gradient(90deg, rgba(255, 193, 7, 0.12) 0%, transparent 100%);
+            color: #ffc107;
+            border-left: 3px solid #ffc107;
+        }
+</style>
 
 @code {
+    private bool isSidebarOpen = false;
+    private void ToggleSidebar() => isSidebarOpen = !isSidebarOpen;
     private List<Expense> expenses = new();
 
-    protected override void OnInitialized()
+    protected override void OnInitialized() => LoadExpenses();
+
+    private void LoadExpenses()
     {
-        expenses = ExpenseService.GetExpenses();
+        try
+        {
+            var result = ExpenseService.GetExpenses();
+            expenses = result != null ? new List<Expense>(result) : new List<Expense>();
+        }
+        catch { expenses = new List<Expense>(); }
     }
 
     private void DeleteExpense(int id)
     {
-        ExpenseService.DeleteExpense(id);
-        expenses = ExpenseService.GetExpenses();
+        try
+        {
+            ExpenseService.DeleteExpense(id);
+            LoadExpenses();
+        }
+        catch
+        {
+            // Fallback error handling if needed
+        }
     }
 }
