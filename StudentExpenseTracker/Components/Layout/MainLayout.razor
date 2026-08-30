@@ -1,15 +1,13 @@
 ﻿@inherits LayoutComponentBase
 
-<div class="app-layout">
-    <!-- Sidebar -->
-    <div class="sidebar-wrapper">
+<div class="d-flex flex-column min-vh-100" style="background-color: var(--bg-onyx); width: 100%;">
+    <!-- Top Sticky Header -->
+    <header class="sticky-top" style="z-index: 1030;">
         <NavMenu />
-    </div>
+    </header>
 
-    <!-- Main Workspace -->
-    <div class="main-workspace">
-        <div class="container-fluid p-0">
-            @Body
-        </div>
-    </div>
+    <!-- Fully Responsive Workspace -->
+    <main class="flex-grow-1 p-3 p-md-4 container-fluid">
+        @Body
+    </main>
 </div>

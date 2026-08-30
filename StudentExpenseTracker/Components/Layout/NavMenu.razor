@@ -1,32 +1,44 @@
-﻿<div class="px-4 py-4 border-bottom" style="border-color: var(--border-color) !important;">
-    <h4 class="fw-bold m-0" style="color: var(--accent-yellow);">
-        Expense Tracker
-    </h4>
+﻿@rendermode InteractiveServer
+
+<!-- Top Header Bar -->
+<div class="navbar navbar-dark bg-sidebar px-3 py-2 border-bottom border-secondary d-flex align-items-center gap-3">
+    <button class="btn text-warning fs-3 p-0 border-0 shadow-none lh-1" type="button" @onclick="ToggleNavMenu" aria-label="Toggle navigation">
+        &#9776;
+    </button>
+    <a class="navbar-brand fw-bold text-warning fs-4 m-0" href="">Gasto Buster</a>
 </div>
 
-<div class="p-3">
-    <nav class="nav flex-column gap-2">
-        <NavLink class="nav-link px-3 py-2 rounded text-white-50 d-flex align-items-center gap-2" href="" Match="NavLinkMatch.All">
-            Dashboard
+<!-- Backdrop Overlay -->
+@if (isNavOpen)
+{
+    <div class="offcanvas-backdrop fade show" @onclick="ToggleNavMenu"></div>
+}
+
+<!-- Off-Canvas Sidebar Menu -->
+<div class="offcanvas-drawer @(isNavOpen ? "open" : "")">
+    <div class="p-3 d-flex justify-content-between align-items-center border-bottom border-secondary">
+        <h4 class="fw-bold text-warning m-0 fs-4">Gasto Buster</h4>
+        <button type="button" class="btn-close btn-close-white shadow-none" @onclick="ToggleNavMenu" aria-label="Close"></button>
+    </div>
+
+    <nav class="flex-column d-flex gap-2 p-3">
+        <NavLink class="nav-link px-3 py-2 rounded text-light fw-semibold d-flex align-items-center gap-3" href="" Match="NavLinkMatch.All" @onclick="ToggleNavMenu">
+            <i class="bi bi-speedometer2"></i> Dashboard
         </NavLink>
-        <NavLink class="nav-link px-3 py-2 rounded text-white-50 d-flex align-items-center gap-2" href="add">
-            Add Expense
+        <NavLink class="nav-link px-3 py-2 rounded text-light fw-semibold d-flex align-items-center gap-3" href="add" @onclick="ToggleNavMenu">
+            <i class="bi bi-plus-circle"></i> Add Expense
         </NavLink>
-        <NavLink class="nav-link px-3 py-2 rounded text-white-50 d-flex align-items-center gap-2" href="expenses">
-            Expenses List
+        <NavLink class="nav-link px-3 py-2 rounded text-light fw-semibold d-flex align-items-center gap-3" href="expenses" @onclick="ToggleNavMenu">
+            <i class="bi bi-list-ul"></i> Expenses List
         </NavLink>
     </nav>
 </div>
 
-<style>
-    .nav-link:hover {
-        background-color: #1e1e1e;
-        color: var(--accent-yellow) !important;
-    }
+@code {
+    private bool isNavOpen = false;
 
-    .nav-link.active {
-        background-color: var(--accent-yellow) !important;
-        color: #000000 !important;
-        font-weight: 600;
+    private void ToggleNavMenu()
+    {
+        isNavOpen = !isNavOpen;
     }
-</style>
+}

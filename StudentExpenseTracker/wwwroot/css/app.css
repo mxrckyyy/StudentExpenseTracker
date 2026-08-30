@@ -35,7 +35,54 @@ body {
     flex-grow: 1;
     padding: 2.5rem;
     overflow-y: auto;
-    min-width: 0; /* Prevents long elements like tables from overflowing page layout */
+    min-width: 0; /* Prevents tables from overflowing layout */
+}
+
+/* Navigation & Hamburger Header */
+.bg-sidebar {
+    background-color: var(--bg-sidebar, #0a0a0a) !important;
+}
+
+.nav-link {
+    color: #e2e8f0 !important;
+    transition: background-color 0.2s ease;
+}
+
+    .nav-link:hover {
+        background-color: #2a2a2a !important;
+    }
+
+    .nav-link.active {
+        background-color: var(--accent-yellow, #ffc107) !important;
+        color: #000000 !important;
+    }
+
+/* Off-Canvas Slide-Out Drawer (Portal Style) */
+.offcanvas-drawer {
+    position: fixed;
+    top: 0;
+    left: -280px;
+    width: 280px;
+    height: 100vh;
+    background-color: var(--bg-sidebar, #0a0a0a);
+    z-index: 1050;
+    transition: left 0.3s ease-in-out;
+    box-shadow: 4px 0 15px rgba(0, 0, 0, 0.5);
+    overflow-y: auto;
+}
+
+    .offcanvas-drawer.open {
+        left: 0;
+    }
+
+.offcanvas-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.6);
+    z-index: 1040;
 }
 
 /* Cards */
@@ -94,7 +141,12 @@ body {
         padding: 1.1rem 1.25rem !important;
     }
 
-/* Mobile & Tablet responsiveness (screens smaller than 768px) */
+.text-description {
+    color: #e2e8f0 !important;
+    font-size: 0.95rem;
+}
+
+/* Mobile & Tablet Responsiveness */
 @media (max-width: 767.98px) {
     .app-layout {
         flex-direction: column;
@@ -110,7 +162,6 @@ body {
         padding: 1rem;
     }
 
-    /* Keep table cells readable on small mobile screens */
     .table-onyx th,
     .table-onyx td {
         padding: 0.75rem 0.5rem !important;
