@@ -1,13 +1,13 @@
 ﻿@inherits LayoutComponentBase
 
-<div class="d-flex" style="min-height: 100vh; background-color: var(--bg-onyx);">
+<div class="app-layout">
     <!-- Sidebar -->
-    <div style="width: 260px; flex-shrink: 0; background-color: var(--bg-sidebar); border-right: 1px solid var(--border-color);">
+    <div class="sidebar-wrapper">
         <NavMenu />
     </div>
 
-    <!-- Full-Width Workspace -->
-    <div class="flex-grow-1 p-5" style="overflow-y: auto;">
+    <!-- Main Workspace -->
+    <div class="main-workspace">
         <div class="container-fluid p-0">
             @Body
         </div>

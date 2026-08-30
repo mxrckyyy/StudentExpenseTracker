@@ -12,15 +12,40 @@ body {
     background-color: var(--bg-onyx) !important;
     color: var(--text-primary) !important;
     font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    margin: 0;
+    padding: 0;
 }
 
+/* Base Responsive Layout Structure */
+.app-layout {
+    display: flex;
+    min-height: 100vh;
+    background-color: var(--bg-onyx);
+    width: 100%;
+}
+
+.sidebar-wrapper {
+    width: 260px;
+    flex-shrink: 0;
+    background-color: var(--bg-sidebar);
+    border-right: 1px solid var(--border-color);
+}
+
+.main-workspace {
+    flex-grow: 1;
+    padding: 2.5rem;
+    overflow-y: auto;
+    min-width: 0; /* Prevents long elements like tables from overflowing page layout */
+}
+
+/* Cards */
 .card-onyx {
     background-color: var(--bg-card);
     border: 1px solid var(--border-color);
     border-radius: 12px;
 }
 
-/* Larger Form Controls */
+/* Form Controls */
 .form-control-onyx {
     background-color: #2b2b2b !important;
     border: 1px solid #3d3d3d !important;
@@ -34,23 +59,25 @@ body {
         box-shadow: 0 0 0 0.25rem rgba(255, 193, 7, 0.25) !important;
     }
 
+/* Buttons */
 .btn-yellow {
     background-color: var(--accent-yellow);
-}
-
     color: #000000;
     font-weight: 600;
     border: none;
+}
+
     .btn-yellow:hover {
         background-color: #e0a800;
         color: #000000;
     }
 
-/* Larger Table Cells & Text */
+/* Tables */
 .table-onyx {
     color: var(--text-primary);
     border-color: var(--border-color);
     font-size: 1.1rem;
+    width: 100%;
 }
 
     .table-onyx th {
@@ -66,3 +93,27 @@ body {
         vertical-align: middle;
         padding: 1.1rem 1.25rem !important;
     }
+
+/* Mobile & Tablet responsiveness (screens smaller than 768px) */
+@media (max-width: 767.98px) {
+    .app-layout {
+        flex-direction: column;
+    }
+
+    .sidebar-wrapper {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .main-workspace {
+        padding: 1rem;
+    }
+
+    /* Keep table cells readable on small mobile screens */
+    .table-onyx th,
+    .table-onyx td {
+        padding: 0.75rem 0.5rem !important;
+        font-size: 0.95rem;
+    }
+}
