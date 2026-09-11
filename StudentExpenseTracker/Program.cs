@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore;
+using StudentExpenseTracker.Data;
 using StudentExpenseTracker.Services;
 using StudentExpenseTracker.Components;
 
@@ -7,8 +9,15 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-// Register ExpenseService as Singleton for shared in-memory data
-builder.Services.AddSingleton<ExpenseService>();
+// Register MySQL database context
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseMySql(connectionString, new MySqlServerVersion(new Version(8, 0, 36))));
+
+// Register ExpenseService as Scoped (must match DbContext lifetime)
+builder.Services.AddScoped<ExpenseService>();
 
 var app = builder.Build();
 
