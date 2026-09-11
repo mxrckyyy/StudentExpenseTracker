@@ -138,23 +138,30 @@
             return;
         }
 
-        var user = new ApplicationUser
+        try
         {
-            UserName = registerModel.Email.Trim(),
-            Email = registerModel.Email.Trim()
-        };
+            var user = new ApplicationUser
+            {
+                UserName = registerModel.Email.Trim(),
+                Email = registerModel.Email.Trim()
+            };
 
-        var result = await UserManager.CreateAsync(user, registerModel.Password);
+            var result = await UserManager.CreateAsync(user, registerModel.Password);
 
-        if (result.Succeeded)
-        {
-            ExpenseService.SeedSampleData(user.Id);
-            await SignInManager.SignInAsync(user, isPersistent: true);
-            Navigation.NavigateTo("/dashboard", forceLoad: true);
+            if (result.Succeeded)
+            {
+                ExpenseService.SeedSampleData(user.Id);
+                await SignInManager.SignInAsync(user, isPersistent: true);
+                Navigation.NavigateTo("/dashboard", forceLoad: true);
+            }
+            else
+            {
+                errorMessage = string.Join(" ", result.Errors.Select(e => e.Description));
+            }
         }
-        else
+        catch (Exception ex)
         {
-            errorMessage = string.Join(" ", result.Errors.Select(e => e.Description));
+            errorMessage = "Unable to create your account. Check that the database is running and try again. (" + ex.Message + ")";
         }
     }
 

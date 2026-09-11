@@ -127,32 +127,39 @@
     {
         errorMessage = string.Empty;
 
-        var userName = loginModel.Username.Trim();
-        var user = await UserManager.FindByNameAsync(userName);
-        if (user == null)
+        try
         {
-            user = await UserManager.FindByEmailAsync(userName);
-        }
+            var userName = loginModel.Username.Trim();
+            var user = await UserManager.FindByNameAsync(userName);
+            if (user == null)
+            {
+                user = await UserManager.FindByEmailAsync(userName);
+            }
 
-        if (user == null)
-        {
-            errorMessage = "Invalid username or email.";
-            return;
-        }
+            if (user == null)
+            {
+                errorMessage = "Invalid username or email.";
+                return;
+            }
 
-        var result = await SignInManager.PasswordSignInAsync(
-            user.UserName ?? string.Empty,
-            loginModel.Password,
-            isPersistent: true,
-            lockoutOnFailure: false);
+            var result = await SignInManager.PasswordSignInAsync(
+                user.UserName ?? string.Empty,
+                loginModel.Password,
+                isPersistent: true,
+                lockoutOnFailure: false);
 
-        if (result.Succeeded)
-        {
-            Navigation.NavigateTo("/dashboard", forceLoad: true);
+            if (result.Succeeded)
+            {
+                Navigation.NavigateTo("/dashboard", forceLoad: true);
+            }
+            else
+            {
+                errorMessage = "Invalid password. Please try again.";
+            }
         }
-        else
+        catch (Exception ex)
         {
-            errorMessage = "Invalid password. Please try again.";
+            errorMessage = "Unable to sign in. Check that the database is running and try again. (" + ex.Message + ")";
         }
     }
 
