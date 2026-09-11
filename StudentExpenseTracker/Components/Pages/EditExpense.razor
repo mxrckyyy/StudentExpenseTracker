@@ -1,8 +1,10 @@
 ﻿@page "/edit/{id:int}"
 @layout StudentExpenseTracker.Components.Layout.EmptyLayout
 @rendermode InteractiveServer
+@attribute [Authorize]
 @inject ExpenseService ExpenseService
 @inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>Edit Expense - Gasto Buster</PageTitle>
 
@@ -242,11 +244,13 @@
     private void ToggleSidebar() => isSidebarOpen = !isSidebarOpen;
     private Expense? expense;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
         try
         {
-            var existing = ExpenseService.GetExpenses().FirstOrDefault(e => e.Id == id);
+            var existing = ExpenseService.GetExpenseById(id, userId);
             if (existing != null)
             {
                 expense = new Expense
@@ -265,11 +269,13 @@
         }
     }
 
-    private void HandleSubmit()
+    private async Task HandleSubmit()
     {
         if (expense != null)
         {
-            ExpenseService.UpdateExpense(expense);
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var userId = authState.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+            ExpenseService.UpdateExpense(expense, userId);
             Navigation.NavigateTo("/expenses");
         }
     }

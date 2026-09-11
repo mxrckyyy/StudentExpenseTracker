@@ -1,36 +1,41 @@
-﻿@page "/"
-@page "/login"
+@page "/register"
 @layout StudentExpenseTracker.Components.Layout.EmptyLayout
 @rendermode InteractiveServer
 @using Microsoft.AspNetCore.Identity
 @inject NavigationManager Navigation
-@inject SignInManager<ApplicationUser> SignInManager
 @inject UserManager<ApplicationUser> UserManager
+@inject SignInManager<ApplicationUser> SignInManager
+@inject ExpenseService ExpenseService
 
-<PageTitle>Login - Gasto Buster</PageTitle>
+<PageTitle>Register - Gasto Buster</PageTitle>
 
 <div class="app-container min-vh-100 d-flex align-items-center justify-content-center position-relative text-light p-4">
     <main style="width: 100%; max-width: 420px;">
         <div class="text-center mb-4">
             <div class="fw-bold fs-3 text-warning tracking-wide mb-1">GASTO BUSTER</div>
-            <p class="text-accent-blue small m-0">Secure Student Expense Management</p>
+            <p class="text-accent-blue small m-0">Create Your Account</p>
         </div>
 
         <div class="glass-card p-4 p-md-5 shadow-xl">
             <div class="mb-4">
-                <h3 class="fw-bold m-0 text-white fs-4">Welcome Back</h3>
-                <p class="text-muted small m-0 mt-1">Please sign in to your account</p>
+                <h3 class="fw-bold m-0 text-white fs-4">Sign Up</h3>
+                <p class="text-muted small m-0 mt-1">Start tracking your expenses today</p>
             </div>
 
-            <EditForm Model="loginModel" OnValidSubmit="HandleLogin">
+            <EditForm Model="registerModel" OnValidSubmit="HandleRegister">
                 <div class="mb-4">
-                    <label class="minimal-label">USERNAME OR EMAIL</label>
-                    <InputText class="form-control minimal-input" @bind-Value="loginModel.Username" placeholder="e.g. student@act.edu.ph" />
+                    <label class="minimal-label">EMAIL</label>
+                    <InputText type="email" class="form-control minimal-input" @bind-Value="registerModel.Email" placeholder="e.g. student@act.edu.ph" />
                 </div>
 
                 <div class="mb-4">
                     <label class="minimal-label">PASSWORD</label>
-                    <InputText type="password" class="form-control minimal-input" @bind-Value="loginModel.Password" placeholder="••••••••" />
+                    <InputText type="password" class="form-control minimal-input" @bind-Value="registerModel.Password" placeholder="At least 8 characters" />
+                </div>
+
+                <div class="mb-4">
+                    <label class="minimal-label">CONFIRM PASSWORD</label>
+                    <InputText type="password" class="form-control minimal-input" @bind-Value="registerModel.ConfirmPassword" placeholder="Re-enter your password" />
                 </div>
 
                 @if (!string.IsNullOrEmpty(errorMessage))
@@ -38,12 +43,12 @@
                     <div class="alert alert-danger py-2 small mb-3">@errorMessage</div>
                 }
 
-                <button type="submit" class="btn-primary-modern w-100 py-3 mb-3">Sign In</button>
+                <button type="submit" class="btn-primary-modern w-100 py-3 mb-3">Create Account</button>
             </EditForm>
 
             <div class="text-center">
-                <button type="button" class="btn btn-link text-accent-blue text-decoration-none p-0 small" @onclick="GoToRegister">
-                    Need an account? Sign up
+                <button type="button" class="btn btn-link text-accent-blue text-decoration-none p-0 small" @onclick="GoToLogin">
+                    Already have an account? Sign in
                 </button>
             </div>
         </div>
@@ -118,47 +123,45 @@
 </style>
 
 @code {
-    private LoginModel loginModel = new();
+    private RegisterModel registerModel = new();
     private string errorMessage = string.Empty;
 
-    private void GoToRegister() => Navigation.NavigateTo("/register");
+    private void GoToLogin() => Navigation.NavigateTo("/login");
 
-    private async Task HandleLogin()
+    private async Task HandleRegister()
     {
         errorMessage = string.Empty;
 
-        var userName = loginModel.Username.Trim();
-        var user = await UserManager.FindByNameAsync(userName);
-        if (user == null)
+        if (registerModel.Password != registerModel.ConfirmPassword)
         {
-            user = await UserManager.FindByEmailAsync(userName);
-        }
-
-        if (user == null)
-        {
-            errorMessage = "Invalid username or email.";
+            errorMessage = "Passwords do not match.";
             return;
         }
 
-        var result = await SignInManager.PasswordSignInAsync(
-            user.UserName ?? string.Empty,
-            loginModel.Password,
-            isPersistent: true,
-            lockoutOnFailure: false);
+        var user = new ApplicationUser
+        {
+            UserName = registerModel.Email.Trim(),
+            Email = registerModel.Email.Trim()
+        };
+
+        var result = await UserManager.CreateAsync(user, registerModel.Password);
 
         if (result.Succeeded)
         {
+            ExpenseService.SeedSampleData(user.Id);
+            await SignInManager.SignInAsync(user, isPersistent: true);
             Navigation.NavigateTo("/dashboard", forceLoad: true);
         }
         else
         {
-            errorMessage = "Invalid password. Please try again.";
+            errorMessage = string.Join(" ", result.Errors.Select(e => e.Description));
         }
     }
 
-    public class LoginModel
+    public class RegisterModel
     {
-        public string Username { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
         public string Password { get; set; } = string.Empty;
+        public string ConfirmPassword { get; set; } = string.Empty;
     }
 }

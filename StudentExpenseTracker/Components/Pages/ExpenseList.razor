@@ -1,8 +1,10 @@
 ﻿@page "/expenses"
 @layout StudentExpenseTracker.Components.Layout.EmptyLayout
 @rendermode InteractiveServer
+@attribute [Authorize]
 @inject ExpenseService ExpenseService
 @inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>Expenses List - Gasto Buster</PageTitle>
 
@@ -264,14 +266,20 @@
     private bool isSidebarOpen = false;
     private void ToggleSidebar() => isSidebarOpen = !isSidebarOpen;
     private List<Expense> expenses = new();
+    private string userId = string.Empty;
 
-    protected override void OnInitialized() => LoadExpenses();
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        userId = authState.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+        LoadExpenses();
+    }
 
     private void LoadExpenses()
     {
         try
         {
-            var result = ExpenseService.GetExpenses();
+            var result = ExpenseService.GetExpenses(userId);
             expenses = result != null ? new List<Expense>(result) : new List<Expense>();
         }
         catch { expenses = new List<Expense>(); }
@@ -281,7 +289,7 @@
     {
         try
         {
-            ExpenseService.DeleteExpense(id);
+            ExpenseService.DeleteExpense(id, userId);
             LoadExpenses();
         }
         catch

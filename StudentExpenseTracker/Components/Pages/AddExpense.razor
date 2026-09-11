@@ -1,8 +1,10 @@
 ﻿@page "/add-expense"
 @layout StudentExpenseTracker.Components.Layout.EmptyLayout
 @rendermode InteractiveServer
+@attribute [Authorize]
 @inject ExpenseService ExpenseService
 @inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>Add Expense - Gasto Buster</PageTitle>
 
@@ -219,9 +221,11 @@
         if (!_hasFocusedAmount && expense.Amount == 0) { expense.Amount = 0; _hasFocusedAmount = true; }
     }
 
-    private void HandleSubmit()
+    private async Task HandleSubmit()
     {
-        ExpenseService.AddExpense(expense);
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+        ExpenseService.AddExpense(expense, userId);
         Navigation.NavigateTo("/expenses");
     }
 }

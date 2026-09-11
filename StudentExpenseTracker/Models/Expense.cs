@@ -18,5 +18,7 @@ namespace StudentExpenseTracker.Models
         public string Category { get; set; } = "General";
 
         public DateTime Date { get; set; } = DateTime.Today;
+
+        public string UserId { get; set; } = string.Empty;
     }
 }
