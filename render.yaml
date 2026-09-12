@@ -11,19 +11,27 @@ services:
     envVars:
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
-      # Database credentials are Aiven secrets — set ONE of these two values in the
-      # Render dashboard (never store the password in this file).
+      # --- Aiven MySQL connection -----------------------------------------
+      # The password is a secret: NEVER commit it to this file. Pick ONE of
+      # the two formats below and set it in the Render Dashboard
+      # (Dashboard -> select service -> Environment -> Add Environment Variable).
       #
-      # Option 1 - Connection-string format (ConnectionStrings__DefaultConnection):
-      #   Server=mysql-1a054fa1-comeorsinventorysystem.l.aivencloud.com;Port=<AIVEN_PORT>;Database=student_expense_db;User=avnadmin;Password=<AIVEN_PASSWORD>;SslMode=Required;SslCa=App_Data/certs/mysql-ca.pem
-      #   NOTE: if the password contains ';' or spaces, wrap it in double quotes:
-      #   Password="p@ss;word". No percent-encoding is used in this format.
+      # Option 1 (recommended): ConnectionStrings__DefaultConnection
+      #   Format (add the leading connectionString__ prefix is handled by
+      #   using the key name exactly as-is):
+      #   Server=mysql-XXXXXXXXX-YYYYYYY.a.aivencloud.com;Port=<AIVEN_PORT>;Database=defaultdb;User=avnadmin;Password=<AIVEN_PASSWORD>;SslMode=Required
+      #   * Host, port, user and password come from the Aiven Console
+      #     (Overview -> Connection information -> Connection tab of your MySQL service).
+      #   * The app forces SslMode=Required in Production, so TLS is always used.
+      #   * If the password contains ';' or spaces, wrap it in double quotes:
+      #     Password="p@ss;word".
       #
-      # Option 2 - URL format (DATABASE_URL), parsed by Program.cs without truncating
-      #   special characters in the password (password must be percent-encoded:
-      #   # -> %23, @ -> %40, / -> %2F, : -> %3A):
-      #   mysql://avnadmin:<AIVEN_PASSWORD>@mysql-1a054fa1-comeorsinventorysystem.l.aivencloud.com:<AIVEN_PORT>/student_expense_db?ssl-mode=REQUIRED
-      #   TIP: copy the "Service URI" from the Aiven console (Overview -> Service
-      #   URI / Connection information) so the password field matches exactly.
+      # Option 2: DATABASE_URL (Aiven "Service URI" style)
+      #   mysql://avnadmin:<AIVEN_PASSWORD>@mysql-XXXXXXXXX-YYYYYYY.a.aivencloud.com:<AIVEN_PORT>/defaultdb?ssl-mode=REQUIRED
+      #   * Program.cs parses this manually and unescapes special password
+      #     characters (e.g. %23 for '#'), so percent-encode the password.
       - key: ConnectionStrings__DefaultConnection
         sync: false
+      # Uncomment the line below instead if you prefer the URL format:
+      # - key: DATABASE_URL
+      #   sync: false

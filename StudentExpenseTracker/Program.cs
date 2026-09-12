@@ -1,7 +1,9 @@
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using MySqlConnector;
-using MySqlConnector.Logging;
+using System.Security.Claims;
 using StudentExpenseTracker.Data;
 using StudentExpenseTracker.Models;
 using StudentExpenseTracker.Services;
@@ -11,104 +13,48 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add Blazor services
 builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents(options =>
-    {
-        // TEMPORARY (debugging Render deploy crash): surface detailed Blazor
-        // circuit errors in the browser so the real exception message and
-        // stack trace are visible. Remove this after the crash is diagnosed.
-        options.DetailedErrors = true;
-    });
+    .AddInteractiveServerComponents();
 
 builder.Services.AddCascadingAuthenticationState();
 
-// Register MySQL database context.
-// The connection string can be provided either as a connection string
-// (ConnectionStrings__DefaultConnection env var) or as a MySQL URL
-// (DATABASE_URL env var, e.g. from Aiven), parsed below without losing
-// special characters in the password.
-var connectionString = ResolveConnectionString(builder.Configuration, out var connectionSource);
-if (connectionString == null || string.IsNullOrWhiteSpace(connectionString))
-{
-    Console.Error.WriteLine("[Startup] No MySQL connection string found. Set ConnectionStrings__DefaultConnection or DATABASE_URL.");
-    connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? string.Empty;
-    connectionSource = "appsettings.json DefaultConnection fallback";
-}
-
-// Diagnostic log (masked): prints host, port, database, user, and SSL mode so
-// Render deploy logs clearly show what endpoint the app is trying to reach.
-// The password is intentionally never written to the console.
-var maskedBuilder = new MySqlConnectionStringBuilder(connectionString);
-Console.WriteLine($"[Startup] MySQL target -> Server: {maskedBuilder.Server}; Port: {maskedBuilder.Port}; Database: {maskedBuilder.Database}; User: {maskedBuilder.UserID}; SslMode: {maskedBuilder.SslMode}; Source: {connectionSource}");
-
-// Aiven MySQL only accepts encrypted connections. Force SslMode=Required in
-// non-Development so the deployed app always uses TLS regardless of whether
-// the Render env var included the setting. Local XAMPP (Development) is left
-// untouched so it can run without a certificate.
-if (!builder.Environment.IsDevelopment() && !string.IsNullOrWhiteSpace(connectionString))
-{
-    var sslEnforced = new MySqlConnectionStringBuilder(connectionString)
+// Cookie-based authentication backed by the Users table (no Identity UI).
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
     {
-        SslMode = MySqlSslMode.Required
-    };
-    connectionString = sslEnforced.ConnectionString;
-    Console.WriteLine($"[Startup] Updated production connection string uses SslMode={maskedBuilder.SslMode} -> SslMode=Required.");
-}
+        options.LoginPath = "/login";
+        options.AccessDeniedPath = "/login";
+        options.ExpireTimeSpan = TimeSpan.FromDays(7);
+    });
+builder.Services.AddAuthorization();
 
-// Route MySqlConnector's own log output (including the exact "Access denied
-// for user 'avnadmin'..." MySqlException message on failed connections) to the
-// console so Render logs capture the precise authentication failure detail.
-if (!builder.Environment.IsDevelopment())
-{
-    MySqlConnectorLogManager.Provider = new ConsoleLoggerProvider();
-}
+// Resolve the MySQL connection string. Priority:
+//   ConnectionStrings__DefaultConnection (Render env var / appsettings.json)
+//   -> DATABASE_URL (URL format, e.g. mysql://avnadmin:pass@host:port/db)
+// The password's special characters are unescaped so credentials pass cleanly.
+var resolvedConnectionString = ResolveConnectionString(builder.Configuration, out var connectionSource);
+var connectionString = string.IsNullOrWhiteSpace(resolvedConnectionString)
+    ? (builder.Configuration.GetConnectionString("DefaultConnection") ?? string.Empty)
+    : resolvedConnectionString;
 
-// Direct connectivity health check: opens a raw MySqlConnection so host
-// reachability and the exact server-side failure text (e.g. "Access denied
-// for user 'avnadmin'...") appear in the Render deploy logs on startup.
-// The result is read from the async task state (no try/catch), and the check
-// is non-fatal: if it fails, the app still boots and the CanConnect guards
-// in the login/register routes keep serving friendly errors instead of
-// crashing page requests.
-TestRawMySqlConnection(connectionString, builder.Environment);
+// Aiven only accepts encrypted connections; force SslMode=Required so the
+// deployed app always talks TLS regardless of how the env var was written.
+var securedConnectionString = EnforceSslMode(connectionString, builder.Environment, out var sslModeLabel);
+Console.WriteLine($"[Startup] MySQL target -> {connectionSource}; SslMode: {sslModeLabel}");
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseMySql(connectionString, new MySqlServerVersion(new Version(8, 0, 36)),
+    options.UseMySql(securedConnectionString, new MySqlServerVersion(new Version(8, 0, 36)),
         mysqlOptions => mysqlOptions.EnableRetryOnFailure(
             maxRetryCount: 5,
             maxRetryDelay: TimeSpan.FromSeconds(10),
-            errorNumbersToAdd: Array.Empty<int>())));
+            errorNumbersToAdd: null)));
 
-// Configure ASP.NET Core Identity with cookie authentication
-builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
-    {
-        options.Password.RequireDigit = true;
-        options.Password.RequireLowercase = true;
-        options.Password.RequireUppercase = true;
-        options.Password.RequireNonAlphanumeric = false;
-        options.Password.RequiredLength = 8;
-        options.User.RequireUniqueEmail = true;
-    })
-    .AddEntityFrameworkStores<AppDbContext>()
-    .AddDefaultTokenProviders();
-
-builder.Services.ConfigureApplicationCookie(options =>
-{
-    options.LoginPath = "/login";
-    options.AccessDeniedPath = "/login";
-    options.ExpireTimeSpan = TimeSpan.FromDays(7);
-});
-
-// Register ExpenseService as Scoped (must match DbContext lifetime)
 builder.Services.AddScoped<ExpenseService>();
 
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
 {
-    // TEMPORARY (debugging Render deploy crash): render the full exception
-    // details instead of the generic error page. Replace with
-    // app.UseExceptionHandler("/Error") once the crash is diagnosed.
-    app.UseDeveloperExceptionPage();
+    app.UseExceptionHandler("/Error");
     app.UseHsts();
 }
 else
@@ -126,22 +72,10 @@ app.UseAuthorization();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
-// Auth endpoints: Identity must run over a real HTTP request so the auth
-// cookie can be written before the response starts (interactive Blazor
-// Server circuits cannot set cookies, hence SignInManager must not be
-// invoked from an interactive component).
-app.MapPost("/account/login", async (
-    HttpContext context,
-    UserManager<ApplicationUser> userManager,
-    SignInManager<ApplicationUser> signInManager,
-    AppDbContext dbContext) =>
+// Auth endpoints: set the auth cookie over a real HTTP request (interactive
+// Blazor Server circuits cannot set cookies).
+app.MapPost("/account/login", async (HttpContext context, ExpenseService expenseService) =>
 {
-    // Graceful check: fail the sign-in with a readable message instead of
-    // letting an "Access denied" database exception break the route when the
-    // Aiven credentials are wrong/unreachable.
-    if (!dbContext.Database.CanConnect())
-        return Results.Redirect("/login?error=" + Uri.EscapeDataString("Database unavailable. Verify the MySQL connection string in the Render environment variables."));
-
     var form = await context.Request.ReadFormAsync();
     var username = form["Username"].ToString().Trim();
     var password = form["Password"].ToString();
@@ -149,33 +83,21 @@ app.MapPost("/account/login", async (
     if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
         return Results.Redirect("/login?error=" + Uri.EscapeDataString("Username and password are required."));
 
-    var user = await userManager.FindByNameAsync(username);
-    if (user == null)
-        user = await userManager.FindByEmailAsync(username);
-
+    var user = expenseService.FindByUsernameOrEmail(username);
     if (user == null)
         return Results.Redirect("/login?error=" + Uri.EscapeDataString("Invalid username or email."));
 
-    var result = await signInManager.PasswordSignInAsync(
-        user.UserName!, password, isPersistent: true, lockoutOnFailure: false);
+    var hasher = new PasswordHasher<AppUser>();
+    var verification = hasher.VerifyHashedPassword(user, user.PasswordHash, password);
+    if (verification == PasswordVerificationResult.Failed)
+        return Results.Redirect("/login?error=" + Uri.EscapeDataString("Invalid password. Please try again."));
 
-    return result.Succeeded
-        ? Results.Redirect("/dashboard")
-        : Results.Redirect("/login?error=" + Uri.EscapeDataString("Invalid password. Please try again."));
+    await SignInAsync(context, user);
+    return Results.Redirect("/dashboard");
 });
 
-app.MapPost("/account/register", async (
-    HttpContext context,
-    UserManager<ApplicationUser> userManager,
-    SignInManager<ApplicationUser> signInManager,
-    ExpenseService expenseService,
-    AppDbContext dbContext) =>
+app.MapPost("/account/register", async (HttpContext context, ExpenseService expenseService) =>
 {
-    // Graceful check: fail registration with a readable message instead of an
-    // unhandled "Access denied" database exception.
-    if (!dbContext.Database.CanConnect())
-        return Results.Redirect("/register?error=" + Uri.EscapeDataString("Database unavailable. Verify the MySQL connection string in the Render environment variables."));
-
     var form = await context.Request.ReadFormAsync();
     var email = form["Email"].ToString().Trim();
     var password = form["Password"].ToString();
@@ -187,32 +109,35 @@ app.MapPost("/account/register", async (
     if (!new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(email))
         return Results.Redirect("/register?error=" + Uri.EscapeDataString("Please enter a valid email address."));
 
-    var user = new ApplicationUser { UserName = email, Email = email };
-    var result = await userManager.CreateAsync(user, password);
-    if (!result.Succeeded)
-        return Results.Redirect("/register?error=" + Uri.EscapeDataString(string.Join(" ", result.Errors.Select(e => e.Description))));
+    if (expenseService.FindByUsernameOrEmail(email) != null)
+        return Results.Redirect("/register?error=" + Uri.EscapeDataString("An account with that email already exists."));
 
+    var hasher = new PasswordHasher<AppUser>();
+    var passwordHash = hasher.HashPassword(new AppUser { UserName = email, Email = email }, password);
+    var user = expenseService.CreateUser(email, passwordHash);
     expenseService.SeedSampleData(user.Id);
-    await signInManager.SignInAsync(user, isPersistent: true);
+
+    await SignInAsync(context, user);
     return Results.Redirect("/dashboard");
 });
 
-app.MapPost("/account/logout", async (SignInManager<ApplicationUser> signInManager) =>
+app.MapPost("/account/logout", async (HttpContext context) =>
 {
-    await signInManager.SignOutAsync();
+    await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
     return Results.Redirect("/login");
 });
 
-// Auto-apply pending EF migrations on startup (required on Render where
-// the dotnet-ef CLI is not available). Creates the database and tables
-// if they do not exist yet, and seeds the default categories.
-// Using (scope) so nothing is held when startup ends.
+// Safe startup migration: connect-check first so a failed database connection
+// (wrong credentials, unprovisioned host, firewall) logs a clear message
+// instead of crashing the container process on Render.
+// Migrate() creates and applies every EF table (Users, Expenses, Categories,
+// Budgets) and inserts the seeded default categories from OnModelCreating.
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    if (db.Database.CanConnect())
+    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    if (dbContext.Database.CanConnect())
     {
-        db.Database.Migrate();
+        dbContext.Database.Migrate();
         app.Logger.LogInformation("Database connected and migrations applied successfully.");
     }
     else
@@ -224,11 +149,9 @@ using (var scope = app.Services.CreateScope())
 app.Run();
 
 // Resolves the MySQL connection string from the application configuration.
-// Priority: ConnectionStrings__DefaultConnection (connection-string format)
-// -> DATABASE_URL (URL format, e.g. mysql://user:pass@host:port/db).
-// The "source" output reports which configuration was actually used so the
-// production env var override can be verified against appsettings.json.
-// Returns null when neither variable is set (the caller handles the fallback).
+// Priority: ConnectionStrings__DefaultConnection ->
+// DATABASE_URL (URL format). Returns null when neither variable is set so the
+// caller can fall back to the appsettings.json connection string.
 static string? ResolveConnectionString(ConfigurationManager configuration, out string source)
 {
     var connectionString = configuration.GetConnectionString("DefaultConnection");
@@ -245,14 +168,15 @@ static string? ResolveConnectionString(ConfigurationManager configuration, out s
         return ParseDatabaseUrl(databaseUrl);
     }
 
-    source = "none (fallback used)";
+    source = "appsettings.json DefaultConnection fallback";
     return null;
 }
 
-// Parses a MySQL URL such as mysql://avnadmin:p@ss%23word@host:port/db?ssl-mode=REQUIRED
-// into a MySql connection string. Credentials are split manually (not via Uri.Query),
-// so special characters in the password are preserved instead of being truncated.
-// Returns null when the URL does not contain credentials (user:password@host).
+// Parses a MySQL URL such as mysql://avnadmin:p@ss%23word@host:port/db
+// into a MySql connection string. Credentials are split manually so special
+// characters in the password are preserved, then unescaped so they pass
+// cleanly without truncation or syntax errors. SslMode is forced to Required
+// because Aiven refuses plaintext connections.
 static string? ParseDatabaseUrl(string databaseUrl)
 {
     var rest = databaseUrl;
@@ -279,50 +203,52 @@ static string? ParseDatabaseUrl(string databaseUrl)
     var user = colonIndex < 0 ? credentials : credentials[..colonIndex];
     var password = colonIndex < 0 ? string.Empty : credentials[(colonIndex + 1)..];
 
-    var mySqlBuilder = new MySqlConnectionStringBuilder
+    var sqlBuilder = new MySqlConnectionStringBuilder
     {
         Server = hostPort,
         Database = Uri.UnescapeDataString(database),
         UserID = Uri.UnescapeDataString(user),
         Password = Uri.UnescapeDataString(password),
-        SslMode = MySqlSslMode.Required,
-        SslCa = "App_Data/certs/mysql-ca.pem"
+        SslMode = MySqlSslMode.Required
     };
 
-    return mySqlBuilder.ConnectionString;
+    return sqlBuilder.ConnectionString;
 }
 
-// Direct connectivity health check. Opens a raw MySqlConnection so host
-// reachability and exact server-side failure text (e.g. "Access denied for
-// user 'avnadmin'...") appear in the Render deploy logs on startup. The
-// result is read from the async task state instead of try/catch, so the
-// application keeps failing over to the CanConnect guards in the routes
-// rather than crashing on this diagnostic.
-static void TestRawMySqlConnection(string connectionString, IHostEnvironment environment)
+// Rewrites the resolved connection string so SslMode is always Required for
+// the deployed (non-Development) app. Local Development keeps whatever SSL
+// mode was configured so a local XAMPP instance can run without TLS.
+static string EnforceSslMode(string connectionString, IHostEnvironment environment, out string sslModeLabel)
 {
-    if (environment.IsDevelopment())
-        return;
-
-    Console.WriteLine("[Startup] Running raw MySqlConnection connectivity test...");
-    var connection = new MySqlConnection(connectionString);
-    var openTask = connection.OpenAsync();
-    var done = new ManualResetEventSlim();
-    openTask.ContinueWith(_ => done.Set());
-
-    if (!done.Wait(TimeSpan.FromSeconds(20)))
+    var sqlBuilder = new MySqlConnectionStringBuilder(connectionString);
+    if (!environment.IsDevelopment())
     {
-        Console.Error.WriteLine("[Startup] Raw MySqlConnection test TIMED OUT after 20s. The host may be firewall-blocked.");
-        return;
-    }
-
-    if (openTask.IsFaulted)
-    {
-        var inner = openTask.Exception?.InnerException;
-        Console.Error.WriteLine($"[Startup] Raw MySqlConnection test FAILED: {inner?.Message ?? "unknown error"}");
+        sqlBuilder.SslMode = MySqlSslMode.Required;
+        sslModeLabel = "Required";
     }
     else
     {
-        connection.Close();
-        Console.WriteLine("[Startup] Raw MySqlConnection test PASSED: connection established successfully.");
+        sslModeLabel = sqlBuilder.SslMode.ToString();
     }
+    return sqlBuilder.ConnectionString;
+}
+
+// Builds the authenticated principal for a user and writes the auth cookie.
+// The cookie carries the user id (NameIdentifier), name, and email claims so
+// the interactive components and [Authorize]-guarded pages can resolve the
+// current user without re-querying the database on every render.
+static async Task SignInAsync(HttpContext context, AppUser user)
+{
+    var claims = new List<Claim>
+    {
+        new Claim(ClaimTypes.NameIdentifier, user.Id),
+        new Claim(ClaimTypes.Name, user.Email ?? user.UserName ?? user.Id),
+        new Claim(ClaimTypes.Email, user.Email ?? string.Empty)
+    };
+    var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+    var principal = new ClaimsPrincipal(identity);
+    await context.SignInAsync(
+        CookieAuthenticationDefaults.AuthenticationScheme,
+        principal,
+        new AuthenticationProperties { IsPersistent = true });
 }

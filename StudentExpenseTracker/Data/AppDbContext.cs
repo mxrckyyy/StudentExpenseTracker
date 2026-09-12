@@ -1,78 +1,46 @@
-using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using StudentExpenseTracker.Models;
 
 namespace StudentExpenseTracker.Data
 {
-    public class AppDbContext : IdentityDbContext<ApplicationUser>
+    public class AppDbContext : DbContext
     {
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
         {
         }
 
-        public DbSet<Expense> Expenses { get; set; }
-        public DbSet<Category> Categories { get; set; }
-        public DbSet<Budget> Budgets { get; set; }
+        public DbSet<AppUser> Users => Set<AppUser>();
+        public DbSet<Expense> Expenses => Set<Expense>();
+        public DbSet<Category> Categories => Set<Category>();
+        public DbSet<Budget> Budgets => Set<Budget>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
-            modelBuilder.Entity<Expense>(entity =>
-            {
-                entity.HasKey(e => e.Id);
-                entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
-                entity.Property(e => e.Description).HasMaxLength(500);
-                entity.Property(e => e.Amount).HasColumnType("decimal(18,2)");
-                entity.Property(e => e.Category).IsRequired().HasMaxLength(100);
+            modelBuilder.Entity<AppUser>().HasKey(user => user.Id);
 
-                entity.HasOne<ApplicationUser>()
-                    .WithMany()
-                    .HasForeignKey(e => e.UserId)
-                    .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<Category>().HasKey(category => category.Id);
+            modelBuilder.Entity<Expense>().HasKey(expense => expense.Id);
+            modelBuilder.Entity<Budget>().HasKey(budget => budget.Id);
 
-                entity.HasIndex(e => e.UserId);
+            modelBuilder.Entity<Expense>()
+                .Property(expense => expense.Amount)
+                .HasPrecision(18, 2);
 
-                entity.HasOne<Category>()
-                    .WithMany(c => c.Expenses)
-                    .HasForeignKey(e => e.CategoryId)
-                    .OnDelete(DeleteBehavior.Restrict);
-            });
-
-            modelBuilder.Entity<Category>(entity =>
-            {
-                entity.HasKey(c => c.Id);
-                entity.Property(c => c.Name).IsRequired().HasMaxLength(100);
-                entity.HasIndex(c => c.Name).IsUnique();
-
-                entity.HasIndex(c => c.Id);
-            });
-
-            modelBuilder.Entity<Budget>(entity =>
-            {
-                entity.HasKey(b => b.Id);
-                entity.Property(b => b.Amount).HasColumnType("decimal(18,2)");
-
-                entity.HasOne(b => b.User)
-                    .WithMany()
-                    .HasForeignKey(b => b.UserId)
-                    .OnDelete(DeleteBehavior.Cascade);
-
-                entity.HasOne(b => b.Category)
-                    .WithMany(c => c.Budgets)
-                    .HasForeignKey(b => b.CategoryId)
-                    .OnDelete(DeleteBehavior.Cascade);
-
-                entity.HasIndex(b => new { b.UserId, b.Month, b.Year });
-                entity.HasIndex(b => b.CategoryId);
-            });
+            modelBuilder.Entity<Budget>()
+                .Property(budget => budget.Amount)
+                .HasPrecision(18, 2);
 
             modelBuilder.Entity<Category>().HasData(
                 new Category { Id = 1, Name = "Food" },
-                new Category { Id = 2, Name = "Transport" },
-                new Category { Id = 3, Name = "School Supplies" },
+                new Category { Id = 2, Name = "Transportation" },
+                new Category { Id = 3, Name = "Housing" },
                 new Category { Id = 4, Name = "Entertainment" },
-                new Category { Id = 5, Name = "Other" }
+                new Category { Id = 5, Name = "Education" },
+                new Category { Id = 6, Name = "Shopping" },
+                new Category { Id = 7, Name = "Health" },
+                new Category { Id = 8, Name = "Other" }
             );
         }
     }
