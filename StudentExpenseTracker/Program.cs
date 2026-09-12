@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using MySqlConnector;
+using MySqlConnector.Logging;
 using StudentExpenseTracker.Data;
 using StudentExpenseTracker.Models;
 using StudentExpenseTracker.Services;
@@ -26,13 +27,49 @@ builder.Services.AddCascadingAuthenticationState();
 // (DATABASE_URL env var, e.g. from Aiven), parsed below without losing
 // special characters in the password.
 var connectionString = ResolveConnectionString(builder.Configuration, out var connectionSource);
-if (connectionString == null)
+if (connectionString == null || string.IsNullOrWhiteSpace(connectionString))
 {
     Console.Error.WriteLine("[Startup] No MySQL connection string found. Set ConnectionStrings__DefaultConnection or DATABASE_URL.");
     connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? string.Empty;
     connectionSource = "appsettings.json DefaultConnection fallback";
 }
-Console.WriteLine($"[Startup] MySQL connection source: {connectionSource}");
+
+// Diagnostic log (masked): prints host, port, database, user, and SSL mode so
+// Render deploy logs clearly show what endpoint the app is trying to reach.
+// The password is intentionally never written to the console.
+var maskedBuilder = new MySqlConnectionStringBuilder(connectionString);
+Console.WriteLine($"[Startup] MySQL target -> Server: {maskedBuilder.Server}; Port: {maskedBuilder.Port}; Database: {maskedBuilder.Database}; User: {maskedBuilder.UserID}; SslMode: {maskedBuilder.SslMode}; Source: {connectionSource}");
+
+// Aiven MySQL only accepts encrypted connections. Force SslMode=Required in
+// non-Development so the deployed app always uses TLS regardless of whether
+// the Render env var included the setting. Local XAMPP (Development) is left
+// untouched so it can run without a certificate.
+if (!builder.Environment.IsDevelopment() && !string.IsNullOrWhiteSpace(connectionString))
+{
+    var sslEnforced = new MySqlConnectionStringBuilder(connectionString)
+    {
+        SslMode = MySqlSslMode.Required
+    };
+    connectionString = sslEnforced.ConnectionString;
+    Console.WriteLine($"[Startup] Updated production connection string uses SslMode={maskedBuilder.SslMode} -> SslMode=Required.");
+}
+
+// Route MySqlConnector's own log output (including the exact "Access denied
+// for user 'avnadmin'..." MySqlException message on failed connections) to the
+// console so Render logs capture the precise authentication failure detail.
+if (!builder.Environment.IsDevelopment())
+{
+    MySqlConnectorLogManager.Provider = new ConsoleLoggerProvider();
+}
+
+// Direct connectivity health check: opens a raw MySqlConnection so host
+// reachability and the exact server-side failure text (e.g. "Access denied
+// for user 'avnadmin'...") appear in the Render deploy logs on startup.
+// The result is read from the async task state (no try/catch), and the check
+// is non-fatal: if it fails, the app still boots and the CanConnect guards
+// in the login/register routes keep serving friendly errors instead of
+// crashing page requests.
+TestRawMySqlConnection(connectionString, builder.Environment);
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySql(connectionString, new MySqlServerVersion(new Version(8, 0, 36)),
@@ -253,4 +290,39 @@ static string? ParseDatabaseUrl(string databaseUrl)
     };
 
     return mySqlBuilder.ConnectionString;
+}
+
+// Direct connectivity health check. Opens a raw MySqlConnection so host
+// reachability and exact server-side failure text (e.g. "Access denied for
+// user 'avnadmin'...") appear in the Render deploy logs on startup. The
+// result is read from the async task state instead of try/catch, so the
+// application keeps failing over to the CanConnect guards in the routes
+// rather than crashing on this diagnostic.
+static void TestRawMySqlConnection(string connectionString, IHostEnvironment environment)
+{
+    if (environment.IsDevelopment())
+        return;
+
+    Console.WriteLine("[Startup] Running raw MySqlConnection connectivity test...");
+    var connection = new MySqlConnection(connectionString);
+    var openTask = connection.OpenAsync();
+    var done = new ManualResetEventSlim();
+    openTask.ContinueWith(_ => done.Set());
+
+    if (!done.Wait(TimeSpan.FromSeconds(20)))
+    {
+        Console.Error.WriteLine("[Startup] Raw MySqlConnection test TIMED OUT after 20s. The host may be firewall-blocked.");
+        return;
+    }
+
+    if (openTask.IsFaulted)
+    {
+        var inner = openTask.Exception?.InnerException;
+        Console.Error.WriteLine($"[Startup] Raw MySqlConnection test FAILED: {inner?.Message ?? "unknown error"}");
+    }
+    else
+    {
+        connection.Close();
+        Console.WriteLine("[Startup] Raw MySqlConnection test PASSED: connection established successfully.");
+    }
 }
