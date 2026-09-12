@@ -16,10 +16,14 @@ services:
       #
       # Option 1 - Connection-string format (ConnectionStrings__DefaultConnection):
       #   Server=mysql-1a054fa1-comeorsinventorysystem.l.aivencloud.com;Port=<AIVEN_PORT>;Database=student_expense_db;User=avnadmin;Password=<AIVEN_PASSWORD>;SslMode=Required;SslCa=App_Data/certs/mysql-ca.pem
+      #   NOTE: if the password contains ';' or spaces, wrap it in double quotes:
+      #   Password="p@ss;word". No percent-encoding is used in this format.
       #
       # Option 2 - URL format (DATABASE_URL), parsed by Program.cs without truncating
       #   special characters in the password (password must be percent-encoded:
       #   # -> %23, @ -> %40, / -> %2F, : -> %3A):
       #   mysql://avnadmin:<AIVEN_PASSWORD>@mysql-1a054fa1-comeorsinventorysystem.l.aivencloud.com:<AIVEN_PORT>/student_expense_db?ssl-mode=REQUIRED
+      #   TIP: copy the "Service URI" from the Aiven console (Overview -> Service
+      #   URI / Connection information) so the password field matches exactly.
       - key: ConnectionStrings__DefaultConnection
         sync: false

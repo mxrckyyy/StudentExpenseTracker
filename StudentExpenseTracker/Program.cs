@@ -25,12 +25,14 @@ builder.Services.AddCascadingAuthenticationState();
 // (ConnectionStrings__DefaultConnection env var) or as a MySQL URL
 // (DATABASE_URL env var, e.g. from Aiven), parsed below without losing
 // special characters in the password.
-var connectionString = ResolveConnectionString(builder.Configuration);
+var connectionString = ResolveConnectionString(builder.Configuration, out var connectionSource);
 if (connectionString == null)
 {
-    Console.Error.WriteLine("[Startup] MySQL connection string missing. Set ConnectionStrings__DefaultConnection or DATABASE_URL.");
+    Console.Error.WriteLine("[Startup] No MySQL connection string found. Set ConnectionStrings__DefaultConnection or DATABASE_URL.");
     connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? string.Empty;
+    connectionSource = "appsettings.json DefaultConnection fallback";
 }
+Console.WriteLine($"[Startup] MySQL connection source: {connectionSource}");
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySql(connectionString, new MySqlServerVersion(new Version(8, 0, 36)),
@@ -94,8 +96,15 @@ app.MapRazorComponents<App>()
 app.MapPost("/account/login", async (
     HttpContext context,
     UserManager<ApplicationUser> userManager,
-    SignInManager<ApplicationUser> signInManager) =>
+    SignInManager<ApplicationUser> signInManager,
+    AppDbContext dbContext) =>
 {
+    // Graceful check: fail the sign-in with a readable message instead of
+    // letting an "Access denied" database exception break the route when the
+    // Aiven credentials are wrong/unreachable.
+    if (!dbContext.Database.CanConnect())
+        return Results.Redirect("/login?error=" + Uri.EscapeDataString("Database unavailable. Verify the MySQL connection string in the Render environment variables."));
+
     var form = await context.Request.ReadFormAsync();
     var username = form["Username"].ToString().Trim();
     var password = form["Password"].ToString();
@@ -122,8 +131,14 @@ app.MapPost("/account/register", async (
     HttpContext context,
     UserManager<ApplicationUser> userManager,
     SignInManager<ApplicationUser> signInManager,
-    ExpenseService expenseService) =>
+    ExpenseService expenseService,
+    AppDbContext dbContext) =>
 {
+    // Graceful check: fail registration with a readable message instead of an
+    // unhandled "Access denied" database exception.
+    if (!dbContext.Database.CanConnect())
+        return Results.Redirect("/register?error=" + Uri.EscapeDataString("Database unavailable. Verify the MySQL connection string in the Render environment variables."));
+
     var form = await context.Request.ReadFormAsync();
     var email = form["Email"].ToString().Trim();
     var password = form["Password"].ToString();
@@ -174,18 +189,27 @@ app.Run();
 // Resolves the MySQL connection string from the application configuration.
 // Priority: ConnectionStrings__DefaultConnection (connection-string format)
 // -> DATABASE_URL (URL format, e.g. mysql://user:pass@host:port/db).
+// The "source" output reports which configuration was actually used so the
+// production env var override can be verified against appsettings.json.
 // Returns null when neither variable is set (the caller handles the fallback).
-static string? ResolveConnectionString(ConfigurationManager configuration)
+static string? ResolveConnectionString(ConfigurationManager configuration, out string source)
 {
     var connectionString = configuration.GetConnectionString("DefaultConnection");
     if (!string.IsNullOrWhiteSpace(connectionString))
+    {
+        source = "ConnectionStrings__DefaultConnection (env var overrides appsettings.json)";
         return connectionString;
+    }
 
     var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
-    if (string.IsNullOrWhiteSpace(databaseUrl))
-        return null;
+    if (!string.IsNullOrWhiteSpace(databaseUrl))
+    {
+        source = "DATABASE_URL env var";
+        return ParseDatabaseUrl(databaseUrl);
+    }
 
-    return ParseDatabaseUrl(databaseUrl);
+    source = "none (fallback used)";
+    return null;
 }
 
 // Parses a MySQL URL such as mysql://avnadmin:p@ss%23word@host:port/db?ssl-mode=REQUIRED
