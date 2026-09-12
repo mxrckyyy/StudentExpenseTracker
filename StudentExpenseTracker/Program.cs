@@ -171,7 +171,7 @@ static void ApplyMigrationsSafely(AppDbContext dbContext, ILogger logger)
     if (initialCreatePending && AppTablesAlreadyExist(dbContext))
     {
         logger.LogWarning("Schema desynchronization detected: the app tables already exist but the initial migration is still pending. Dropping the existing tables so the migrations recreate the schema cleanly from scratch.");
-        DropAppTables(dbContext);
+        DropAppTables(dbContext, logger);
     }
 
     dbContext.Database.Migrate();
@@ -192,19 +192,38 @@ static bool AppTablesAlreadyExist(AppDbContext dbContext)
     return foundTables.Count > 0;
 }
 
-// Removes the app tables and their migration history so Migrate() rebuilds
-// the schema (including the seeded categories) from scratch. Order matters:
-// child tables first, history table last, with foreign-key checks disabled
-// so the drops never fail on cross-table constraints.
-static void DropAppTables(AppDbContext dbContext)
+// Removes the app tables, stale schema objects, and migration history so
+// Migrate() rebuilds the schema (including the seeded categories) from
+// scratch. All statements run in ONE command (MySqlConnector allows batches),
+// so FOREIGN_KEY_CHECKS stays disabled for the whole session and DROPs never
+// fail on cross-table foreign keys (e.g. Products -> Categories). The reset
+// is guarded so a failed drop logs a clear error instead of crashing the
+// container on Render.
+static void DropAppTables(AppDbContext dbContext, ILogger logger)
 {
-    dbContext.Database.ExecuteSql($"SET FOREIGN_KEY_CHECKS = 0");
-    dbContext.Database.ExecuteSql($"DROP TABLE IF EXISTS Budgets");
-    dbContext.Database.ExecuteSql($"DROP TABLE IF EXISTS Expenses");
-    dbContext.Database.ExecuteSql($"DROP TABLE IF EXISTS Categories");
-    dbContext.Database.ExecuteSql($"DROP TABLE IF EXISTS Users");
-    dbContext.Database.ExecuteSql($"DROP TABLE IF EXISTS __EFMigrationsHistory");
-    dbContext.Database.ExecuteSql($"SET FOREIGN_KEY_CHECKS = 1");
+    try
+    {
+        dbContext.Database.ExecuteSqlRaw(@"
+            SET FOREIGN_KEY_CHECKS = 0;
+            DROP TABLE IF EXISTS Products;
+            DROP TABLE IF EXISTS Budgets;
+            DROP TABLE IF EXISTS Expenses;
+            DROP TABLE IF EXISTS Categories;
+            DROP TABLE IF EXISTS AspNetUserRoles;
+            DROP TABLE IF EXISTS AspNetUserClaims;
+            DROP TABLE IF EXISTS AspNetUserLogins;
+            DROP TABLE IF EXISTS AspNetUserTokens;
+            DROP TABLE IF EXISTS AspNetRoles;
+            DROP TABLE IF EXISTS AspNetUsers;
+            DROP TABLE IF EXISTS Users;
+            DROP TABLE IF EXISTS __EFMigrationsHistory;
+            SET FOREIGN_KEY_CHECKS = 1;
+        ");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Schema reset failed: could not drop the existing tables. The app will continue starting, so Migrate() may skip objects that already exist.");
+    }
 }
 
 // Resolves the MySQL connection string from the application configuration.
