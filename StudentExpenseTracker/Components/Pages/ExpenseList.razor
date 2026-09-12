@@ -277,24 +277,15 @@
 
     private void LoadExpenses()
     {
-        try
-        {
-            var result = ExpenseService.GetExpenses(userId);
-            expenses = result != null ? new List<Expense>(result) : new List<Expense>();
-        }
-        catch { expenses = new List<Expense>(); }
+        var result = ExpenseService.GetExpenses(userId);
+        expenses = result == null ? new List<Expense>() : new List<Expense>(result);
     }
 
     private void DeleteExpense(int id)
     {
-        try
-        {
-            ExpenseService.DeleteExpense(id, userId);
-            LoadExpenses();
-        }
-        catch
-        {
-            // Fallback error handling if needed
-        }
+        if (string.IsNullOrEmpty(userId))
+            return;
+        ExpenseService.DeleteExpense(id, userId);
+        LoadExpenses();
     }
 }

@@ -248,35 +248,36 @@
     {
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         var userId = authState.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
-        try
+        if (string.IsNullOrEmpty(userId))
+            return;
+
+        var existing = ExpenseService.GetExpenseById(id, userId);
+        if (existing != null)
         {
-            var existing = ExpenseService.GetExpenseById(id, userId);
-            if (existing != null)
+            expense = new Expense
             {
-                expense = new Expense
-                {
-                    Id = existing.Id,
-                    Title = existing.Title,
-                    Amount = existing.Amount,
-                    Category = existing.Category,
-                    Date = existing.Date
-                };
-            }
-        }
-        catch
-        {
-            expense = null;
+                Id = existing.Id,
+                Title = existing.Title,
+                Description = existing.Description,
+                Amount = existing.Amount,
+                Category = existing.Category,
+                CategoryId = existing.CategoryId,
+                Date = existing.Date
+            };
         }
     }
 
     private async Task HandleSubmit()
     {
-        if (expense != null)
-        {
-            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-            var userId = authState.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
-            ExpenseService.UpdateExpense(expense, userId);
-            Navigation.NavigateTo("/expenses");
-        }
+        if (expense == null)
+            return;
+
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+        if (string.IsNullOrEmpty(userId))
+            return;
+
+        ExpenseService.UpdateExpense(expense, userId);
+        Navigation.NavigateTo("/expenses");
     }
 }

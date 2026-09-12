@@ -13,14 +13,24 @@ namespace StudentExpenseTracker.Services
             _context = context;
         }
 
-        public List<Expense> GetExpenses(string userId) =>
-            _context.Expenses.Where(e => e.UserId == userId).ToList();
+        public List<Expense> GetExpenses(string userId)
+        {
+            if (string.IsNullOrEmpty(userId))
+                return new List<Expense>();
+            return _context.Expenses.Where(e => e.UserId == userId).ToList();
+        }
 
-        public Expense? GetExpenseById(int id, string userId) =>
-            _context.Expenses.FirstOrDefault(e => e.Id == id && e.UserId == userId);
+        public Expense? GetExpenseById(int id, string userId)
+        {
+            if (string.IsNullOrEmpty(userId))
+                return null;
+            return _context.Expenses.FirstOrDefault(e => e.Id == id && e.UserId == userId);
+        }
 
         public void AddExpense(Expense expense, string userId)
         {
+            if (string.IsNullOrEmpty(userId))
+                return;
             expense.UserId = userId;
             _context.Expenses.Add(expense);
             _context.SaveChanges();
@@ -34,6 +44,7 @@ namespace StudentExpenseTracker.Services
                 existing.Title = updatedExpense.Title;
                 existing.Description = updatedExpense.Description;
                 existing.Amount = updatedExpense.Amount;
+                existing.CategoryId = updatedExpense.CategoryId;
                 existing.Category = updatedExpense.Category;
                 existing.Date = updatedExpense.Date;
                 _context.SaveChanges();

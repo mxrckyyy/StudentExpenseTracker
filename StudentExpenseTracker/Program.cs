@@ -10,7 +10,13 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add Blazor services
 builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
+    .AddInteractiveServerComponents(options =>
+    {
+        // TEMPORARY (debugging Render deploy crash): surface detailed Blazor
+        // circuit errors in the browser so the real exception message and
+        // stack trace are visible. Remove this after the crash is diagnosed.
+        options.DetailedErrors = true;
+    });
 
 builder.Services.AddCascadingAuthenticationState();
 
@@ -20,6 +26,11 @@ builder.Services.AddCascadingAuthenticationState();
 // (DATABASE_URL env var, e.g. from Aiven), parsed below without losing
 // special characters in the password.
 var connectionString = ResolveConnectionString(builder.Configuration);
+if (connectionString == null)
+{
+    Console.Error.WriteLine("[Startup] MySQL connection string missing. Set ConnectionStrings__DefaultConnection or DATABASE_URL.");
+    connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? string.Empty;
+}
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySql(connectionString, new MySqlServerVersion(new Version(8, 0, 36)),
@@ -55,7 +66,10 @@ var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/Error");
+    // TEMPORARY (debugging Render deploy crash): render the full exception
+    // details instead of the generic error page. Replace with
+    // app.UseExceptionHandler("/Error") once the crash is diagnosed.
+    app.UseDeveloperExceptionPage();
     app.UseHsts();
 }
 else
@@ -140,30 +154,18 @@ app.MapPost("/account/logout", async (SignInManager<ApplicationUser> signInManag
 // Auto-apply pending EF migrations on startup (required on Render where
 // the dotnet-ef CLI is not available). Creates the database and tables
 // if they do not exist yet, and seeds the default categories.
-// Wrapped in a safe connection check so a failed database authentication
-// logs a clear error instead of throwing an unhandled exception that would
-// kill the container on startup.
+// Using (scope) so nothing is held when startup ends.
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    try
+    if (db.Database.CanConnect())
     {
-        if (db.Database.CanConnect())
-        {
-            db.Database.Migrate();
-            app.Logger.LogInformation("Database connected and migrations applied successfully.");
-        }
-        else
-        {
-            app.Logger.LogError("Database connection failed. Verify the ConnectionStrings__DefaultConnection or DATABASE_URL environment variable in Render.");
-        }
+        db.Database.Migrate();
+        app.Logger.LogInformation("Database connected and migrations applied successfully.");
     }
-    catch (Exception ex)
+    else
     {
-        app.Logger.LogError(ex, "Database initialization failed while connecting or applying migrations. " +
-            "Verify the Aiven credentials (host, port, user, password). Expected formats: " +
-            "ConnectionStrings__DefaultConnection = Server=<HOST>;Port=<PORT>;Database=<DB>;User=<USER>;Password=<PASSWORD>;SslMode=Required;SslCa=App_Data/certs/mysql-ca.pem | " +
-            "DATABASE_URL = mysql://<USER>:<PASSWORD>@<HOST>:<PORT>/<DB>?ssl-mode=REQUIRED");
+        app.Logger.LogError("Database connection failed. Verify the ConnectionStrings__DefaultConnection or DATABASE_URL environment variable in Render.");
     }
 }
 
@@ -172,25 +174,25 @@ app.Run();
 // Resolves the MySQL connection string from the application configuration.
 // Priority: ConnectionStrings__DefaultConnection (connection-string format)
 // -> DATABASE_URL (URL format, e.g. mysql://user:pass@host:port/db).
-static string ResolveConnectionString(ConfigurationManager configuration)
+// Returns null when neither variable is set (the caller handles the fallback).
+static string? ResolveConnectionString(ConfigurationManager configuration)
 {
     var connectionString = configuration.GetConnectionString("DefaultConnection");
+    if (!string.IsNullOrWhiteSpace(connectionString))
+        return connectionString;
 
-    if (string.IsNullOrWhiteSpace(connectionString))
-    {
-        var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
-        if (!string.IsNullOrWhiteSpace(databaseUrl))
-            connectionString = ParseDatabaseUrl(databaseUrl);
-    }
+    var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+    if (string.IsNullOrWhiteSpace(databaseUrl))
+        return null;
 
-    return connectionString ?? throw new InvalidOperationException(
-        "Connection string not found. Set the 'ConnectionStrings__DefaultConnection' or 'DATABASE_URL' environment variable.");
+    return ParseDatabaseUrl(databaseUrl);
 }
 
 // Parses a MySQL URL such as mysql://avnadmin:p@ss%23word@host:port/db?ssl-mode=REQUIRED
 // into a MySql connection string. Credentials are split manually (not via Uri.Query),
 // so special characters in the password are preserved instead of being truncated.
-static string ParseDatabaseUrl(string databaseUrl)
+// Returns null when the URL does not contain credentials (user:password@host).
+static string? ParseDatabaseUrl(string databaseUrl)
 {
     var rest = databaseUrl;
     var schemeEnd = databaseUrl.IndexOf("://", StringComparison.Ordinal);
@@ -199,7 +201,7 @@ static string ParseDatabaseUrl(string databaseUrl)
 
     var atIndex = rest.LastIndexOf('@');
     if (atIndex < 0)
-        throw new InvalidOperationException("DATABASE_URL must include credentials (user:password@host).");
+        return null;
 
     var credentials = rest[..atIndex];
     var hostAndDb = rest[(atIndex + 1)..];

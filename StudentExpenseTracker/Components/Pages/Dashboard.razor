@@ -265,26 +265,18 @@
     {
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         var userId = authState.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
-        LoadDashboardData(userId);
+        if (!string.IsNullOrEmpty(userId))
+            LoadDashboardData(userId);
     }
 
     private void LoadDashboardData(string userId)
     {
-        try
+        var allExpenses = ExpenseService.GetExpenses(userId);
+        if (allExpenses != null)
         {
-            var allExpenses = ExpenseService.GetExpenses(userId);
-            if (allExpenses != null)
-            {
-                totalSpent = allExpenses.Sum(e => e.Amount);
-                totalCount = allExpenses.Count();
-                recentExpenses = allExpenses.OrderByDescending(e => e.Date).Take(5).ToList();
-            }
-        }
-        catch
-        {
-            totalSpent = 0;
-            totalCount = 0;
-            recentExpenses = new();
+            totalSpent = allExpenses.Sum(e => e.Amount);
+            totalCount = allExpenses.Count;
+            recentExpenses = allExpenses.OrderByDescending(e => e.Date).Take(5).ToList();
         }
     }
 }
