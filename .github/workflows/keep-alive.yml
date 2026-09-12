@@ -10,4 +10,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Ping Render Site
-        run: curl -s https://studentexpensetracker-ghba.onrender.com > /dev/null
+        run: curl -s https://student-expense-tracker.onrender.com > /dev/null

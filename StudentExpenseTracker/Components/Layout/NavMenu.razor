@@ -1,7 +1,4 @@
 ﻿@rendermode InteractiveServer
-@using Microsoft.AspNetCore.Identity
-@inject NavigationManager Navigation
-@inject SignInManager<ApplicationUser> SignInManager
 
 <!-- Top Header Bar -->
 <div class="navbar navbar-dark bg-sidebar px-3 py-2 border-bottom border-secondary d-flex align-items-center gap-3">
@@ -37,9 +34,11 @@
     </nav>
 
     <div class="p-3 border-top border-secondary mt-auto">
-        <button type="button" class="nav-link px-3 py-2 rounded text-light fw-semibold d-flex align-items-center gap-3 w-100 bg-transparent border-0 text-start" @onclick="Logout">
-            <i class="bi bi-box-arrow-right"></i> Logout
-        </button>
+        <form method="post" action="/account/logout">
+            <button type="submit" class="nav-link px-3 py-2 rounded text-light fw-semibold d-flex align-items-center gap-3 w-100 bg-transparent border-0 text-start">
+                <i class="bi bi-box-arrow-right"></i> Logout
+            </button>
+        </form>
     </div>
 </div>
 
@@ -49,11 +48,5 @@
     private void ToggleNavMenu()
     {
         isNavOpen = !isNavOpen;
-    }
-
-    private async Task Logout()
-    {
-        await SignInManager.SignOutAsync();
-        Navigation.NavigateTo("/login", forceLoad: true);
     }
 }

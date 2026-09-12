@@ -1,11 +1,6 @@
 @page "/register"
 @layout StudentExpenseTracker.Components.Layout.EmptyLayout
-@rendermode InteractiveServer
-@using Microsoft.AspNetCore.Identity
-@inject NavigationManager Navigation
-@inject UserManager<ApplicationUser> UserManager
-@inject SignInManager<ApplicationUser> SignInManager
-@inject ExpenseService ExpenseService
+@using Microsoft.AspNetCore.Components
 
 <PageTitle>Register - Gasto Buster</PageTitle>
 
@@ -22,34 +17,32 @@
                 <p class="text-muted small m-0 mt-1">Start tracking your expenses today</p>
             </div>
 
-            <EditForm Model="registerModel" OnValidSubmit="HandleRegister">
+            <form method="post" action="/account/register">
                 <div class="mb-4">
-                    <label class="minimal-label">EMAIL</label>
-                    <InputText type="email" class="form-control minimal-input" @bind-Value="registerModel.Email" placeholder="e.g. student@act.edu.ph" />
+                    <label class="minimal-label" for="Email">EMAIL</label>
+                    <input id="Email" name="Email" type="email" class="form-control minimal-input" placeholder="e.g. student@act.edu.ph" />
                 </div>
 
                 <div class="mb-4">
-                    <label class="minimal-label">PASSWORD</label>
-                    <InputText type="password" class="form-control minimal-input" @bind-Value="registerModel.Password" placeholder="At least 8 characters" />
+                    <label class="minimal-label" for="Password">PASSWORD</label>
+                    <input id="Password" name="Password" type="password" class="form-control minimal-input" placeholder="At least 8 characters" />
                 </div>
 
                 <div class="mb-4">
-                    <label class="minimal-label">CONFIRM PASSWORD</label>
-                    <InputText type="password" class="form-control minimal-input" @bind-Value="registerModel.ConfirmPassword" placeholder="Re-enter your password" />
+                    <label class="minimal-label" for="ConfirmPassword">CONFIRM PASSWORD</label>
+                    <input id="ConfirmPassword" name="ConfirmPassword" type="password" class="form-control minimal-input" placeholder="Re-enter your password" />
                 </div>
 
-                @if (!string.IsNullOrEmpty(errorMessage))
+                @if (!string.IsNullOrEmpty(Error))
                 {
-                    <div class="alert alert-danger py-2 small mb-3">@errorMessage</div>
+                    <div class="alert alert-danger py-2 small mb-3">@Error</div>
                 }
 
                 <button type="submit" class="btn-primary-modern w-100 py-3 mb-3">Create Account</button>
-            </EditForm>
+            </form>
 
             <div class="text-center">
-                <button type="button" class="btn btn-link text-accent-blue text-decoration-none p-0 small" @onclick="GoToLogin">
-                    Already have an account? Sign in
-                </button>
+                <a href="/login" class="text-accent-blue small text-decoration-none">Already have an account? Sign in</a>
             </div>
         </div>
     </main>
@@ -123,52 +116,6 @@
 </style>
 
 @code {
-    private RegisterModel registerModel = new();
-    private string errorMessage = string.Empty;
-
-    private void GoToLogin() => Navigation.NavigateTo("/login");
-
-    private async Task HandleRegister()
-    {
-        errorMessage = string.Empty;
-
-        if (registerModel.Password != registerModel.ConfirmPassword)
-        {
-            errorMessage = "Passwords do not match.";
-            return;
-        }
-
-        try
-        {
-            var user = new ApplicationUser
-            {
-                UserName = registerModel.Email.Trim(),
-                Email = registerModel.Email.Trim()
-            };
-
-            var result = await UserManager.CreateAsync(user, registerModel.Password);
-
-            if (result.Succeeded)
-            {
-                ExpenseService.SeedSampleData(user.Id);
-                await SignInManager.SignInAsync(user, isPersistent: true);
-                Navigation.NavigateTo("/dashboard", forceLoad: true);
-            }
-            else
-            {
-                errorMessage = string.Join(" ", result.Errors.Select(e => e.Description));
-            }
-        }
-        catch (Exception ex)
-        {
-            errorMessage = "Unable to create your account. Check that the database is running and try again. (" + ex.Message + ")";
-        }
-    }
-
-    public class RegisterModel
-    {
-        public string Email { get; set; } = string.Empty;
-        public string Password { get; set; } = string.Empty;
-        public string ConfirmPassword { get; set; } = string.Empty;
-    }
+    [SupplyParameterFromQuery(Name = "error")]
+    private string? Error { get; set; }
 }

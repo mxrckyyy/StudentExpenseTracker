@@ -1,11 +1,7 @@
 ﻿@page "/"
 @page "/login"
 @layout StudentExpenseTracker.Components.Layout.EmptyLayout
-@rendermode InteractiveServer
-@using Microsoft.AspNetCore.Identity
-@inject NavigationManager Navigation
-@inject SignInManager<ApplicationUser> SignInManager
-@inject UserManager<ApplicationUser> UserManager
+@using Microsoft.AspNetCore.Components
 
 <PageTitle>Login - Gasto Buster</PageTitle>
 
@@ -22,29 +18,27 @@
                 <p class="text-muted small m-0 mt-1">Please sign in to your account</p>
             </div>
 
-            <EditForm Model="loginModel" OnValidSubmit="HandleLogin">
+            <form method="post" action="/account/login">
                 <div class="mb-4">
-                    <label class="minimal-label">USERNAME OR EMAIL</label>
-                    <InputText class="form-control minimal-input" @bind-Value="loginModel.Username" placeholder="e.g. student@act.edu.ph" />
+                    <label class="minimal-label" for="Username">USERNAME OR EMAIL</label>
+                    <input id="Username" name="Username" class="form-control minimal-input" placeholder="e.g. student@act.edu.ph" />
                 </div>
 
                 <div class="mb-4">
-                    <label class="minimal-label">PASSWORD</label>
-                    <InputText type="password" class="form-control minimal-input" @bind-Value="loginModel.Password" placeholder="••••••••" />
+                    <label class="minimal-label" for="Password">PASSWORD</label>
+                    <input id="Password" name="Password" type="password" class="form-control minimal-input" placeholder="••••••••" />
                 </div>
 
-                @if (!string.IsNullOrEmpty(errorMessage))
+                @if (!string.IsNullOrEmpty(Error))
                 {
-                    <div class="alert alert-danger py-2 small mb-3">@errorMessage</div>
+                    <div class="alert alert-danger py-2 small mb-3">@Error</div>
                 }
 
                 <button type="submit" class="btn-primary-modern w-100 py-3 mb-3">Sign In</button>
-            </EditForm>
+            </form>
 
             <div class="text-center">
-                <button type="button" class="btn btn-link text-accent-blue text-decoration-none p-0 small" @onclick="GoToRegister">
-                    Need an account? Sign up
-                </button>
+                <a href="/register" class="text-accent-blue small text-decoration-none">Need an account? Sign up</a>
             </div>
         </div>
     </main>
@@ -118,54 +112,6 @@
 </style>
 
 @code {
-    private LoginModel loginModel = new();
-    private string errorMessage = string.Empty;
-
-    private void GoToRegister() => Navigation.NavigateTo("/register");
-
-    private async Task HandleLogin()
-    {
-        errorMessage = string.Empty;
-
-        try
-        {
-            var userName = loginModel.Username.Trim();
-            var user = await UserManager.FindByNameAsync(userName);
-            if (user == null)
-            {
-                user = await UserManager.FindByEmailAsync(userName);
-            }
-
-            if (user == null)
-            {
-                errorMessage = "Invalid username or email.";
-                return;
-            }
-
-            var result = await SignInManager.PasswordSignInAsync(
-                user.UserName ?? string.Empty,
-                loginModel.Password,
-                isPersistent: true,
-                lockoutOnFailure: false);
-
-            if (result.Succeeded)
-            {
-                Navigation.NavigateTo("/dashboard", forceLoad: true);
-            }
-            else
-            {
-                errorMessage = "Invalid password. Please try again.";
-            }
-        }
-        catch (Exception ex)
-        {
-            errorMessage = "Unable to sign in. Check that the database is running and try again. (" + ex.Message + ")";
-        }
-    }
-
-    public class LoginModel
-    {
-        public string Username { get; set; } = string.Empty;
-        public string Password { get; set; } = string.Empty;
-    }
+    [SupplyParameterFromQuery(Name = "error")]
+    private string? Error { get; set; }
 }

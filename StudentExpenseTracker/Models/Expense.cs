@@ -17,6 +17,8 @@ namespace StudentExpenseTracker.Models
         [Required(ErrorMessage = "Category is required")]
         public string Category { get; set; } = "General";
 
+        public int? CategoryId { get; set; }
+
         public DateTime Date { get; set; } = DateTime.Today;
 
         public string UserId { get; set; } = string.Empty;

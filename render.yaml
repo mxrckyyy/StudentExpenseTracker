@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: student-expense-tracker
+    runtime: dotnet
+    repo: https://github.com/mxrckyyy/StudentExpenseTracker.git
+    branch: master
+    rootDir: StudentExpenseTracker
+    buildCommand: dotnet publish -c Release -o release
+    startCommand: ./release/StudentExpenseTracker
+    healthCheckPath: /
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      # Connection string for the Aiven MySQL service.
+      # Value is set in the Render dashboard (secret; not stored here):
+      # Server=<AIVEN_HOST>.aivencloud.com;Port=<AIVEN_PORT>;Database=student_expense_db;User=avnadmin;Password=<AIVEN_PASSWORD>;SslMode=Required;SslCa=App_Data/certs/mysql-ca.pem
+      - key: ConnectionStrings__DefaultConnection
+        sync: false
