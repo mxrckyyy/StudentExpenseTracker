@@ -129,15 +129,16 @@ app.MapPost("/account/logout", async (HttpContext context) =>
 
 // Safe startup migration: connect-check first so a failed database connection
 // (wrong credentials, unprovisioned host, firewall) logs a clear message
-// instead of crashing the container process on Render.
-// Migrate() creates and applies every EF table (Users, Expenses, Categories,
-// Budgets) and inserts the seeded default categories from OnModelCreating.
+// instead of crashing the container process on Render. The migration routine
+// also recovers from an out-of-sync schema (tables already exist but
+// __EFMigrationsHistory is empty) by dropping and recreating the app tables,
+// so a "Table 'X' already exists" exception never crashes the container.
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     if (dbContext.Database.CanConnect())
     {
-        dbContext.Database.Migrate();
+        ApplyMigrationsSafely(dbContext, app.Logger);
         app.Logger.LogInformation("Database connected and migrations applied successfully.");
     }
     else
@@ -147,6 +148,64 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.Run();
+
+// Applies pending EF migrations with recovery for a desynchronized schema.
+// Scenario: a previous version of the app (or manual SQL) created the tables
+// outside of __EFMigrationsHistory, so EF sees the initial create migration
+// as pending and Migrate() would throw "Table already exists". In that case
+// the app tables are dropped and Migrate() recreates them cleanly from
+// scratch, logging a warning instead of crashing the process.
+static void ApplyMigrationsSafely(AppDbContext dbContext, ILogger logger)
+{
+    var pendingMigrations = dbContext.Database.GetPendingMigrations().ToList();
+
+    if (!pendingMigrations.Any())
+    {
+        logger.LogInformation("Database schema is up to date. No migrations to apply.");
+        return;
+    }
+
+    var firstMigration = dbContext.Database.GetMigrations().FirstOrDefault();
+    var initialCreatePending = firstMigration != null && pendingMigrations.Contains(firstMigration);
+
+    if (initialCreatePending && AppTablesAlreadyExist(dbContext))
+    {
+        logger.LogWarning("Schema desynchronization detected: the app tables already exist but the initial migration is still pending. Dropping the existing tables so the migrations recreate the schema cleanly from scratch.");
+        DropAppTables(dbContext);
+    }
+
+    dbContext.Database.Migrate();
+    logger.LogInformation("Applying {0} pending migration(s): {1}.", pendingMigrations.Count, string.Join(", ", pendingMigrations));
+}
+
+// Checks whether any app table already exists in the current schema. Tables
+// created by older versions of the app (or manual SQL) signal a desync when
+// the initial migration is still pending, so a partial pre-existing schema
+// is treated the same as a complete one.
+static bool AppTablesAlreadyExist(AppDbContext dbContext)
+{
+    var foundTables = dbContext.Database
+        .SqlQuery<string>($"SELECT table_name AS `Value` FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name IN ('Users', 'Expenses', 'Categories', 'Budgets')")
+        .AsEnumerable()
+        .ToList();
+
+    return foundTables.Count > 0;
+}
+
+// Removes the app tables and their migration history so Migrate() rebuilds
+// the schema (including the seeded categories) from scratch. Order matters:
+// child tables first, history table last, with foreign-key checks disabled
+// so the drops never fail on cross-table constraints.
+static void DropAppTables(AppDbContext dbContext)
+{
+    dbContext.Database.ExecuteSql($"SET FOREIGN_KEY_CHECKS = 0");
+    dbContext.Database.ExecuteSql($"DROP TABLE IF EXISTS Budgets");
+    dbContext.Database.ExecuteSql($"DROP TABLE IF EXISTS Expenses");
+    dbContext.Database.ExecuteSql($"DROP TABLE IF EXISTS Categories");
+    dbContext.Database.ExecuteSql($"DROP TABLE IF EXISTS Users");
+    dbContext.Database.ExecuteSql($"DROP TABLE IF EXISTS __EFMigrationsHistory");
+    dbContext.Database.ExecuteSql($"SET FOREIGN_KEY_CHECKS = 1");
+}
 
 // Resolves the MySQL connection string from the application configuration.
 // Priority: ConnectionStrings__DefaultConnection ->
