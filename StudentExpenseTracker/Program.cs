@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using MySqlConnector;
 using StudentExpenseTracker.Data;
 using StudentExpenseTracker.Models;
 using StudentExpenseTracker.Services;
@@ -13,12 +14,19 @@ builder.Services.AddRazorComponents()
 
 builder.Services.AddCascadingAuthenticationState();
 
-// Register MySQL database context
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+// Register MySQL database context.
+// The connection string can be provided either as a connection string
+// (ConnectionStrings__DefaultConnection env var) or as a MySQL URL
+// (DATABASE_URL env var, e.g. from Aiven), parsed below without losing
+// special characters in the password.
+var connectionString = ResolveConnectionString(builder.Configuration);
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseMySql(connectionString, new MySqlServerVersion(new Version(8, 0, 36))));
+    options.UseMySql(connectionString, new MySqlServerVersion(new Version(8, 0, 36)),
+        mysqlOptions => mysqlOptions.EnableRetryOnFailure(
+            maxRetryCount: 5,
+            maxRetryDelay: TimeSpan.FromSeconds(10),
+            errorNumbersToAdd: Array.Empty<int>())));
 
 // Configure ASP.NET Core Identity with cookie authentication
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
@@ -132,10 +140,91 @@ app.MapPost("/account/logout", async (SignInManager<ApplicationUser> signInManag
 // Auto-apply pending EF migrations on startup (required on Render where
 // the dotnet-ef CLI is not available). Creates the database and tables
 // if they do not exist yet, and seeds the default categories.
+// Wrapped in a safe connection check so a failed database authentication
+// logs a clear error instead of throwing an unhandled exception that would
+// kill the container on startup.
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.Migrate();
+    try
+    {
+        if (db.Database.CanConnect())
+        {
+            db.Database.Migrate();
+            app.Logger.LogInformation("Database connected and migrations applied successfully.");
+        }
+        else
+        {
+            app.Logger.LogError("Database connection failed. Verify the ConnectionStrings__DefaultConnection or DATABASE_URL environment variable in Render.");
+        }
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogError(ex, "Database initialization failed while connecting or applying migrations. " +
+            "Verify the Aiven credentials (host, port, user, password). Expected formats: " +
+            "ConnectionStrings__DefaultConnection = Server=<HOST>;Port=<PORT>;Database=<DB>;User=<USER>;Password=<PASSWORD>;SslMode=Required;SslCa=App_Data/certs/mysql-ca.pem | " +
+            "DATABASE_URL = mysql://<USER>:<PASSWORD>@<HOST>:<PORT>/<DB>?ssl-mode=REQUIRED");
+    }
 }
 
 app.Run();
+
+// Resolves the MySQL connection string from the application configuration.
+// Priority: ConnectionStrings__DefaultConnection (connection-string format)
+// -> DATABASE_URL (URL format, e.g. mysql://user:pass@host:port/db).
+static string ResolveConnectionString(ConfigurationManager configuration)
+{
+    var connectionString = configuration.GetConnectionString("DefaultConnection");
+
+    if (string.IsNullOrWhiteSpace(connectionString))
+    {
+        var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+        if (!string.IsNullOrWhiteSpace(databaseUrl))
+            connectionString = ParseDatabaseUrl(databaseUrl);
+    }
+
+    return connectionString ?? throw new InvalidOperationException(
+        "Connection string not found. Set the 'ConnectionStrings__DefaultConnection' or 'DATABASE_URL' environment variable.");
+}
+
+// Parses a MySQL URL such as mysql://avnadmin:p@ss%23word@host:port/db?ssl-mode=REQUIRED
+// into a MySql connection string. Credentials are split manually (not via Uri.Query),
+// so special characters in the password are preserved instead of being truncated.
+static string ParseDatabaseUrl(string databaseUrl)
+{
+    var rest = databaseUrl;
+    var schemeEnd = databaseUrl.IndexOf("://", StringComparison.Ordinal);
+    if (schemeEnd >= 0)
+        rest = databaseUrl[(schemeEnd + 3)..];
+
+    var atIndex = rest.LastIndexOf('@');
+    if (atIndex < 0)
+        throw new InvalidOperationException("DATABASE_URL must include credentials (user:password@host).");
+
+    var credentials = rest[..atIndex];
+    var hostAndDb = rest[(atIndex + 1)..];
+
+    var queryIndex = hostAndDb.IndexOf('?');
+    if (queryIndex >= 0)
+        hostAndDb = hostAndDb[..queryIndex];
+
+    var slashIndex = hostAndDb.IndexOf('/');
+    var hostPort = slashIndex < 0 ? hostAndDb : hostAndDb[..slashIndex];
+    var database = slashIndex < 0 ? string.Empty : hostAndDb[(slashIndex + 1)..];
+
+    var colonIndex = credentials.IndexOf(':');
+    var user = colonIndex < 0 ? credentials : credentials[..colonIndex];
+    var password = colonIndex < 0 ? string.Empty : credentials[(colonIndex + 1)..];
+
+    var mySqlBuilder = new MySqlConnectionStringBuilder
+    {
+        Server = hostPort,
+        Database = Uri.UnescapeDataString(database),
+        UserID = Uri.UnescapeDataString(user),
+        Password = Uri.UnescapeDataString(password),
+        SslMode = MySqlSslMode.Required,
+        SslCa = "App_Data/certs/mysql-ca.pem"
+    };
+
+    return mySqlBuilder.ConnectionString;
+}

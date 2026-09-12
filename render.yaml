@@ -11,8 +11,15 @@ services:
     envVars:
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
-      # Connection string for the Aiven MySQL service.
-      # Value is set in the Render dashboard (secret; not stored here):
-      # Server=<AIVEN_HOST>.aivencloud.com;Port=<AIVEN_PORT>;Database=student_expense_db;User=avnadmin;Password=<AIVEN_PASSWORD>;SslMode=Required;SslCa=App_Data/certs/mysql-ca.pem
+      # Database credentials are Aiven secrets — set ONE of these two values in the
+      # Render dashboard (never store the password in this file).
+      #
+      # Option 1 - Connection-string format (ConnectionStrings__DefaultConnection):
+      #   Server=mysql-1a054fa1-comeorsinventorysystem.l.aivencloud.com;Port=<AIVEN_PORT>;Database=student_expense_db;User=avnadmin;Password=<AIVEN_PASSWORD>;SslMode=Required;SslCa=App_Data/certs/mysql-ca.pem
+      #
+      # Option 2 - URL format (DATABASE_URL), parsed by Program.cs without truncating
+      #   special characters in the password (password must be percent-encoded:
+      #   # -> %23, @ -> %40, / -> %2F, : -> %3A):
+      #   mysql://avnadmin:<AIVEN_PASSWORD>@mysql-1a054fa1-comeorsinventorysystem.l.aivencloud.com:<AIVEN_PORT>/student_expense_db?ssl-mode=REQUIRED
       - key: ConnectionStrings__DefaultConnection
         sync: false
