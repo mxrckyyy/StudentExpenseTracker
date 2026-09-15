@@ -24,15 +24,6 @@ namespace StudentExpenseTracker.Data
             modelBuilder.Entity<Expense>().HasKey(expense => expense.Id);
             modelBuilder.Entity<Budget>().HasKey(budget => budget.Id);
 
-            // Users.Id is a manually assigned GUID string. Locking it to
-            // varchar(255) (instead of the default longtext) lets Expenses and
-            // Budgets reference it with a matching varchar(255) foreign key.
-            // MySQL/InnoDB rejects FKs whose referenced/referencing columns have
-            // different types or charsets, which previously crashed deployments.
-            modelBuilder.Entity<AppUser>()
-                .Property(user => user.Id)
-                .HasMaxLength(255);
-
             modelBuilder.Entity<Expense>()
                 .Property(expense => expense.Amount)
                 .HasPrecision(18, 2);
@@ -67,13 +58,10 @@ namespace StudentExpenseTracker.Data
 
             modelBuilder.Entity<Category>().HasData(
                 new Category { Id = 1, Name = "Food" },
-                new Category { Id = 2, Name = "Transportation" },
-                new Category { Id = 3, Name = "Housing" },
+                new Category { Id = 2, Name = "Transport" },
+                new Category { Id = 3, Name = "School Supplies" },
                 new Category { Id = 4, Name = "Entertainment" },
-                new Category { Id = 5, Name = "Education" },
-                new Category { Id = 6, Name = "Shopping" },
-                new Category { Id = 7, Name = "Health" },
-                new Category { Id = 8, Name = "Other" }
+                new Category { Id = 5, Name = "Other" }
             );
         }
     }

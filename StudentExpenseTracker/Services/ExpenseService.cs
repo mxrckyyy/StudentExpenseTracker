@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using MySqlConnector;
 using StudentExpenseTracker.Data;
 using StudentExpenseTracker.Models;
 
@@ -191,24 +190,24 @@ namespace StudentExpenseTracker.Services
             }
         }
 
-        // Logs the exact database failure. MySQL error 1146 ("table doesn't
-        // exist") is called out explicitly because it almost always means the
-        // schema was never created by the startup migration.
+        // Logs the exact database failure. A "no such table" message is called
+        // out explicitly because it almost always means the schema was never
+        // created by the startup migration.
         private void LogDatabaseFailure(Exception ex, string operation)
         {
-            if (ex is MySqlException mysqlException)
-            {
-                var hint = mysqlException.Number == 1146
-                    ? " The schema is missing a table; the startup migration did not complete."
-                    : string.Empty;
+            var message = ex is DbUpdateException && ex.InnerException != null
+                ? ex.InnerException.Message
+                : ex.Message;
 
-                _logger.LogError(mysqlException,
-                    "MySQL error {ErrorNumber} while running {Operation}: {Message}{Hint}",
-                    mysqlException.Number, operation, mysqlException.Message, hint);
+            if (message.Contains("no such table", StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogError(
+                    "Database error while running {Operation}: {Message} The schema is missing a table; the startup migration did not complete.",
+                    operation, message);
             }
             else
             {
-                _logger.LogError(ex, "Database error while running {Operation}.", operation);
+                _logger.LogError(ex, "Database error while running {Operation}: {Message}", operation, message);
             }
         }
     }

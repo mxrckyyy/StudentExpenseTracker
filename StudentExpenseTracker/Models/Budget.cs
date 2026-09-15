@@ -14,7 +14,6 @@ namespace StudentExpenseTracker.Models
 
         public int Year { get; set; }
 
-        [MaxLength(255)]
         public string UserId { get; set; } = string.Empty;
 
         public int CategoryId { get; set; }
