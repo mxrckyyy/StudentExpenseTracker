@@ -21,6 +21,7 @@ namespace StudentExpenseTracker.Models
 
         public DateTime Date { get; set; } = DateTime.Today;
 
+        [MaxLength(255)]
         public string UserId { get; set; } = string.Empty;
     }
 }

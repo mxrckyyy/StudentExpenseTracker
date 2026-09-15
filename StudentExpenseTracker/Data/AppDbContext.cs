@@ -24,6 +24,15 @@ namespace StudentExpenseTracker.Data
             modelBuilder.Entity<Expense>().HasKey(expense => expense.Id);
             modelBuilder.Entity<Budget>().HasKey(budget => budget.Id);
 
+            // Users.Id is a manually assigned GUID string. Locking it to
+            // varchar(255) (instead of the default longtext) lets Expenses and
+            // Budgets reference it with a matching varchar(255) foreign key.
+            // MySQL/InnoDB rejects FKs whose referenced/referencing columns have
+            // different types or charsets, which previously crashed deployments.
+            modelBuilder.Entity<AppUser>()
+                .Property(user => user.Id)
+                .HasMaxLength(255);
+
             modelBuilder.Entity<Expense>()
                 .Property(expense => expense.Amount)
                 .HasPrecision(18, 2);
@@ -31,6 +40,30 @@ namespace StudentExpenseTracker.Data
             modelBuilder.Entity<Budget>()
                 .Property(budget => budget.Amount)
                 .HasPrecision(18, 2);
+
+            modelBuilder.Entity<Expense>()
+                .HasOne<AppUser>()
+                .WithMany()
+                .HasForeignKey(expense => expense.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Budget>()
+                .HasOne<AppUser>()
+                .WithMany()
+                .HasForeignKey(budget => budget.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Expense>()
+                .HasOne<Category>()
+                .WithMany()
+                .HasForeignKey(expense => expense.CategoryId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Budget>()
+                .HasOne<Category>()
+                .WithMany()
+                .HasForeignKey(budget => budget.CategoryId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<Category>().HasData(
                 new Category { Id = 1, Name = "Food" },
