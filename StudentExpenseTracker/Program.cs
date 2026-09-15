@@ -36,8 +36,13 @@ builder.Services.AddAuthorization();
 
 // Local SQLite database. The .db file is self-contained inside the app folder,
 // so the app never touches the shared MySQL server used by other projects.
+//
+// A stale ConnectionStrings__DefaultConnection host variable (e.g. the old
+// Render MySQL string) overrides appsettings.json, and SQLite crashes on
+// MySQL keywords like "Server=" or "Database=". Guard against that: only
+// accept a value SQLite can actually parse, otherwise use the default file.
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-if (string.IsNullOrWhiteSpace(connectionString))
+if (!IsSqliteConnectionString(connectionString))
     connectionString = $"Data Source={Path.Combine(builder.Environment.ContentRootPath, "gasto-buster.db")}";
 
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -162,6 +167,25 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.Run();
+
+// True only when the value is a connection string SQLite can parse. A MySQL
+// string ("Server=...;Database=...;User=...;Password=...") is rejected so the
+// app can never crash in SqliteConnectionStringBuilder with it.
+static bool IsSqliteConnectionString(string? value)
+{
+    if (string.IsNullOrWhiteSpace(value))
+        return false;
+
+    try
+    {
+        _ = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(value);
+        return true;
+    }
+    catch
+    {
+        return false;
+    }
+}
 
 // Builds the authenticated principal for a user and writes the auth cookie.
 // The cookie carries the user id (NameIdentifier), name, and email claims so
