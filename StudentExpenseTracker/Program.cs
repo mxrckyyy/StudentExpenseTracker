@@ -52,9 +52,27 @@ builder.Services.AddScoped<ExpenseService>();
 
 var app = builder.Build();
 
+// Error visibility. Development and Staging always show the detailed developer
+// exception page. Production stays locked down by default, but can opt in
+// temporarily (for example while diagnosing a deployment) by setting
+// DetailedErrors=true in the Render dashboard environment variables.
+var detailedErrors = app.Environment.IsDevelopment()
+    || app.Environment.IsStaging()
+    || app.Configuration.GetValue<bool>("DetailedErrors");
+
+if (detailedErrors)
+{
+    app.UseDeveloperExceptionPage();
+}
+else
+{
+    // The built-in handler logs the full exception (message + stack trace)
+    // before re-executing the /Error page.
+    app.UseExceptionHandler("/Error");
+}
+
 if (!app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/Error");
     app.UseHsts();
 }
 else
@@ -115,6 +133,9 @@ app.MapPost("/account/register", async (HttpContext context, ExpenseService expe
     var hasher = new PasswordHasher<AppUser>();
     var passwordHash = hasher.HashPassword(new AppUser { UserName = email, Email = email }, password);
     var user = expenseService.CreateUser(email, passwordHash);
+    if (user == null)
+        return Results.Redirect("/register?error=" + Uri.EscapeDataString("We couldn't create your account right now. Please try again in a moment."));
+
     expenseService.SeedSampleData(user.Id);
 
     await SignInAsync(context, user);
@@ -127,24 +148,57 @@ app.MapPost("/account/logout", async (HttpContext context) =>
     return Results.Redirect("/login");
 });
 
-// Safe startup migration: connect-check first so a failed database connection
-// (wrong credentials, unprovisioned host, firewall) logs a clear message
-// instead of crashing the container process on Render. The migration routine
-// also recovers from an out-of-sync schema (tables already exist but
-// __EFMigrationsHistory is empty) by dropping and recreating the app tables,
-// so a "Table 'X' already exists" exception never crashes the container.
-using (var scope = app.Services.CreateScope())
+// Startup migration: the database must be reachable and fully migrated BEFORE
+// the app serves any request, so no component or page can ever query a
+// missing/partial schema. Aiven can take a moment to accept connections on a
+// cold deploy, so we retry with backoff. If the database still cannot be
+// prepared, startup is aborted with a fully-logged exception instead of
+// silently continuing to serve pages that would only throw "table doesn't
+// exist" errors behind the generic error page.
+const int maxDatabaseAttempts = 10;
+Exception? databaseError = null;
+var databaseReady = false;
+
+for (var attempt = 1; attempt <= maxDatabaseAttempts && !databaseReady; attempt++)
 {
+    using var scope = app.Services.CreateScope();
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    if (dbContext.Database.CanConnect())
+
+    try
     {
+        app.Logger.LogInformation("Preparing database (attempt {Attempt}/{Max})...", attempt, maxDatabaseAttempts);
+
+        if (!dbContext.Database.CanConnect())
+            throw new InvalidOperationException(
+                "Could not connect to the MySQL server. Verify ConnectionStrings__DefaultConnection (or DATABASE_URL) is set correctly in the Render dashboard.");
+
         ApplyMigrationsSafely(dbContext, app.Logger);
+        databaseReady = true;
         app.Logger.LogInformation("Database connected and migrations applied successfully.");
     }
-    else
+    catch (Exception ex)
     {
-        app.Logger.LogError("Database connection failed. Verify the ConnectionStrings__DefaultConnection or DATABASE_URL environment variable in Render.");
+        databaseError = ex;
+        app.Logger.LogError(ex, "Database initialization attempt {Attempt}/{Max} failed: {Reason}",
+            attempt, maxDatabaseAttempts, ex.Message);
+
+        if (attempt < maxDatabaseAttempts)
+        {
+            var delay = TimeSpan.FromSeconds(Math.Min(attempt * 2, 15));
+            app.Logger.LogWarning("Retrying database initialization in {Delay} seconds...", delay.TotalSeconds);
+            Thread.Sleep(delay);
+        }
     }
+}
+
+if (!databaseReady)
+{
+    app.Logger.LogCritical(databaseError,
+        "Database could not be initialized after {Max} attempts. Aborting startup so the app does not serve pages without a valid schema.",
+        maxDatabaseAttempts);
+
+    throw new InvalidOperationException(
+        "Database initialization failed. See the logged exception for the exact cause.", databaseError);
 }
 
 app.Run();
