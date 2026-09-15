@@ -10,6 +10,14 @@ using StudentExpenseTracker.Components;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Hosting platforms pass the HTTP port in the PORT environment variable
+// (for example Render). Bind to it when present so traffic reaches the app.
+var hostPort = Environment.GetEnvironmentVariable("PORT");
+if (!string.IsNullOrWhiteSpace(hostPort))
+{
+    builder.WebHost.UseUrls($"http://0.0.0.0:{hostPort}");
+}
+
 // Add Blazor services
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();

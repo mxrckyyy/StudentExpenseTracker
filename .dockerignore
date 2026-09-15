@@ -1,0 +1,18 @@
+# Exclude build output, source control, and local database files
+# so the Docker build context stays small and clean.
+
+**/bin/
+**/obj/
+**/node_modules/
+
+.git/
+.github/
+.vs/
+.vscode/
+
+*.user
+
+# Local SQLite database files (regenerated inside the container on first run)
+*.db
+*.db-shm
+*.db-wal
